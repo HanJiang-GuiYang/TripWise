@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TripWise · AI出行随身向导</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+  <script src="https://cdn.bootcdn.net/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+</head>
+<body>
+
+  <!-- 浮动装饰背景 -->
+  <div class="bg-decor">
+    <div class="cloud cloud-1">☁️</div>
+    <div class="cloud cloud-2">☁️</div>
+    <div class="cloud cloud-3">🕊️</div>
+  </div>
+
+  <!-- 顶部导航 -->
+  <header class="header">
+    <div class="logo">
+      <span class="logo-icon">✈️</span>
+      <div class="logo-text">
+        <h1>TripWise</h1>
+        <p>AI出行随身向导</p>
+      </div>
+    </div>
+    <nav class="nav" id="nav">
+      <button class="nav-btn active" data-tab="home"><span>🏠</span>首页</button>
+      <button class="nav-btn" data-tab="route"><span>🗺️</span>路线规划</button>
+      <button class="nav-btn" data-tab="packing"><span>🧳</span>行李清单</button>
+      <button class="nav-btn" data-tab="landmarks"><span>📍</span>地标打卡</button>
+      <button class="nav-btn" data-tab="blindbox"><span>🎁</span>探店盲盒</button>
+      <button class="nav-btn" data-tab="journal"><span>📔</span>旅行手账</button>
+    </nav>
+  </header>
+
+  <main class="main">
+
+    <!-- ========== 首页 ========== -->
+    <section class="tab-content active" id="tab-home">
+      <div class="hero">
+        <div class="hero-content">
+          <h2 class="hero-title">让每一段旅程<br>都充满<span class="highlight">惊喜</span></h2>
+          <p class="hero-desc">AI智能规划路线 · 一键生成行李清单 · 收集城市地标<br>发现小众好店 · 自动生成旅行手账</p>
+          <button class="btn btn-primary btn-large" onclick="switchTab('route')">开始规划旅程 →</button>
+        </div>
+        <div class="hero-illustration">
+          <div class="hero-globe">🌏</div>
+          <div class="hero-badge badge-1">📍 已打卡 12 城</div>
+          <div class="hero-badge badge-2">🎒 行李已备好</div>
+          <div class="hero-badge badge-3">🗺️ 3 条路线</div>
+        </div>
+      </div>
+
+      <div class="features-grid">
+        <div class="feature-card" onclick="switchTab('route')">
+          <div class="feature-icon">🗺️</div>
+          <h3>智能路线规划</h3>
+          <p>AI为你规划最优出行路线，公交地铁实时信息，景点攻略一站搞定</p>
+        </div>
+        <div class="feature-card" onclick="switchTab('packing')">
+          <div class="feature-icon">🧳</div>
+          <h3>AI行李清单</h3>
+          <p>根据目的地天气、行程天数智能生成行李清单，再也不怕遗漏</p>
+        </div>
+        <div class="feature-card" onclick="switchTab('landmarks')">
+          <div class="feature-icon">📍</div>
+          <h3>地标打卡图鉴</h3>
+          <p>收集每个城市的标志性打卡地标，解锁成就，记录足迹</p>
+        </div>
+        <div class="feature-card" onclick="switchTab('blindbox')">
+          <div class="feature-icon">🎁</div>
+          <h3>探店盲盒</h3>
+          <p>随机生成小众探店推荐，让AI带你发现隐藏的城市宝藏</p>
+        </div>
+        <div class="feature-card" onclick="switchTab('journal')">
+          <div class="feature-icon">📔</div>
+          <h3>旅行手账生成</h3>
+          <p>旅途文字一键生成精美旅行手账漫画，记录美好回忆</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== 路线规划 ========== -->
+    <section class="tab-content" id="tab-route">
+      <div class="section-header">
+        <h2>🗺️ 智能路线规划</h2>
+        <p>输入目的地，AI为你生成最优路线</p>
+      </div>
+      <div class="route-input-group">
+        <input type="text" class="input" id="route-dest" placeholder="输入目的地，如：北京、上海、成都...">
+        <select class="input select" id="route-days">
+          <option value="1">1天</option>
+          <option value="2">2天</option>
+          <option value="3" selected>3天</option>
+          <option value="5">5天</option>
+          <option value="7">7天</option>
+        </select>
+        <select class="input select" id="route-type">
+          <option value="culture">文化之旅</option>
+          <option value="food">美食之旅</option>
+          <option value="nature">自然探索</option>
+          <option value="photo">摄影打卡</option>
+        </select>
+        <button class="btn btn-primary" onclick="generateRoute()">✨ AI生成路线</button>
+      </div>
+      <div class="route-result" id="route-result" style="display:none;">
+        <div class="route-layout">
+          <div class="route-map-panel">
+            <div class="map-toolbar">
+              <span class="map-title" id="map-title">🗺️ 实时地图导航</span>
+              <button class="btn btn-outline btn-sm" id="nav-start-btn" onclick="startNavigation()" style="display:none;">🧭 开始导航</button>
+              <button class="btn btn-outline btn-sm" id="nav-stop-btn" onclick="stopNavigation()" style="display:none;">⏹ 停止导航</button>
+            </div>
+            <div id="route-map"></div>
+            <div class="map-legend" id="map-legend"></div>
+            <div class="route-tips" id="route-tips"></div>
+          </div>
+          <div class="route-info-panel">
+            <div class="route-summary" id="route-summary"></div>
+            <div class="route-timeline" id="route-timeline"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== 行李清单 ========== -->
+    <section class="tab-content" id="tab-packing">
+      <div class="section-header">
+        <h2>🧳 AI行李清单</h2>
+        <p>智能生成你的专属行李清单</p>
+      </div>
+      <div class="packing-form">
+        <input type="text" class="input" id="packing-dest" placeholder="目的地（如：北京、三亚、东京...）">
+        <select class="input select" id="packing-weather">
+          <option value="hot">🌞 炎热（>30°C）</option>
+          <option value="warm">🌤️ 温暖（20-30°C）</option>
+          <option value="cool">🍂 凉爽（10-20°C）</option>
+          <option value="cold">❄️ 寒冷（<10°C）</option>
+        </select>
+        <select class="input select" id="packing-days">
+          <option value="1">1-2天</option>
+          <option value="3" selected>3-5天</option>
+          <option value="7">6-7天</option>
+          <option value="14">7天以上</option>
+        </select>
+        <div class="checkbox-group">
+          <label class="checkbox-label"><input type="checkbox" value="beach" id="opt-beach"> 🏖️ 海边</label>
+          <label class="checkbox-label"><input type="checkbox" value="mountain" id="opt-mountain"> ⛰️ 登山</label>
+          <label class="checkbox-label"><input type="checkbox" value="business" id="opt-business"> 💼 商务</label>
+          <label class="checkbox-label"><input type="checkbox" value="photo" id="opt-photo"> 📷 摄影</label>
+        </div>
+        <button class="btn btn-primary" onclick="generatePackingList()">✨ 生成行李清单</button>
+      </div>
+      <div class="packing-result" id="packing-result" style="display:none;">
+        <div class="packing-header">
+          <h3>📋 你的行李清单</h3>
+          <div class="packing-progress">
+            <div class="progress-bar"><div class="progress-fill" id="packing-progress-fill"></div></div>
+            <span class="progress-text" id="packing-progress-text">0/0 已准备</span>
+          </div>
+        </div>
+        <div class="packing-categories" id="packing-list"></div>
+      </div>
+    </section>
+
+    <!-- ========== 地标打卡 ========== -->
+    <section class="tab-content" id="tab-landmarks">
+      <div class="section-header">
+        <h2>📍 城市地标打卡图鉴</h2>
+        <p>收集每个城市的标志性打卡地标</p>
+      </div>
+      <div class="city-selector" id="city-selector"></div>
+      <div class="landmark-stats">
+        <div class="stat-item">
+          <span class="stat-number" id="stat-checked">0</span>
+          <span class="stat-label">已打卡</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-number" id="stat-total">0</span>
+          <span class="stat-label">总数</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-number" id="stat-cities">0</span>
+          <span class="stat-label">已解锁城市</span>
+        </div>
+      </div>
+      <div class="landmark-grid" id="landmark-grid"></div>
+    </section>
+
+    <!-- ========== 探店盲盒 ========== -->
+    <section class="tab-content" id="tab-blindbox">
+      <div class="section-header">
+        <h2>🎁 探店盲盒</h2>
+        <p>让AI带你发现隐藏的城市宝藏</p>
+      </div>
+      <div class="blindbox-container">
+        <div class="blindbox-city">
+          <label>选择城市：</label>
+          <select class="input select" id="blindbox-city">
+            <option value="beijing">北京</option>
+            <option value="shanghai">上海</option>
+            <option value="chengdu">成都</option>
+            <option value="guangzhou">广州</option>
+            <option value="hangzhou">杭州</option>
+            <option value="xiamen">厦门</option>
+          </select>
+        </div>
+        <div class="blindbox-card" id="blindbox-card">
+          <div class="blindbox-front">
+            <div class="blindbox-gift">🎁</div>
+            <p>点击开启你的专属探店推荐</p>
+          </div>
+          <div class="blindbox-reveal" id="blindbox-reveal" style="display:none;">
+            <div class="reveal-category" id="reveal-category"></div>
+            <h3 class="reveal-name" id="reveal-name"></h3>
+            <div class="reveal-rating" id="reveal-rating"></div>
+            <p class="reveal-desc" id="reveal-desc"></p>
+            <div class="reveal-tags" id="reveal-tags"></div>
+            <div class="reveal-tip" id="reveal-tip"></div>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-large" id="blindbox-btn" onclick="openBlindBox()">🎲 开启盲盒</button>
+      </div>
+    </section>
+
+    <!-- ========== 旅行手账 ========== -->
+    <section class="tab-content" id="tab-journal">
+      <div class="section-header">
+        <h2>📔 旅行手账生成器</h2>
+        <p>输入旅途文字，一键生成精美手账漫画</p>
+      </div>
+      <div class="journal-input">
+        <textarea class="textarea" id="journal-text" rows="5" placeholder="记录你的旅途故事...&#10;例如：今天去了故宫，红墙金瓦太美了！中午在附近吃了一家超好吃的炸酱面，下午在胡同里散步，遇到了可爱的猫咪..."></textarea>
+        <div class="journal-styles">
+          <button class="style-btn active" data-style="cute">🌸 可爱风</button>
+          <button class="style-btn" data-style="retro">📷 复古风</button>
+          <button class="style-btn" data-style="fresh">🌿 清新风</button>
+          <button class="style-btn" data-style="ink">🎨 水墨风</button>
+        </div>
+        <button class="btn btn-primary" onclick="generateJournal()">✨ 生成手账</button>
+      </div>
+      <div class="journal-output" id="journal-output" style="display:none;">
+        <div class="journal-page" id="journal-page">
+          <div class="journal-date" id="journal-date"></div>
+          <div class="journal-weather" id="journal-weather"></div>
+          <div class="journal-content" id="journal-content"></div>
+          <div class="journal-stickers" id="journal-stickers"></div>
+          <div class="journal-doodles" id="journal-doodles"></div>
+        </div>
+        <div class="journal-actions">
+          <button class="btn btn-outline" onclick="downloadJournal()">📥 保存图片</button>
+          <button class="btn btn-outline" onclick="shareJournal()">📤 分享</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 打卡弹窗 -->
+  <div class="modal-overlay" id="checkin-modal" style="display:none;">
+    <div class="modal-card">
+      <div class="modal-stamp">✅</div>
+      <h3 class="modal-title" id="modal-title">打卡成功！</h3>
+      <p class="modal-desc" id="modal-desc"></p>
+      <button class="btn btn-primary" onclick="closeModal()">太棒了！</button>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <p>TripWise · AI出行随身向导 | 为Trae AI创造力大赛而作</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
