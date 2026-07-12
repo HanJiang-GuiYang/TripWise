@@ -1079,3 +1079,481 @@ body {
     gap: 1.5rem;
   }
 }
+
+/* ========== 方言课堂样式 ========== */
+.dialect-selector {
+  max-width: 500px;
+  margin: 0 auto 2rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.dialect-selector label {
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.dialect-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.dialect-card {
+  background: white;
+  padding: 1.5rem;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  transition: all 0.3s;
+  border-left: 4px solid var(--primary);
+}
+
+.dialect-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lg);
+}
+
+.dialect-phrase {
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+  color: var(--text);
+}
+
+.dialect-dialect {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: var(--primary);
+  margin-bottom: 0.5rem;
+}
+
+.dialect-pinyin {
+  font-size: 0.9rem;
+  color: var(--text-light);
+  margin-bottom: 0.5rem;
+  font-style: italic;
+}
+
+.dialect-meaning {
+  font-size: 0.95rem;
+  color: var(--text);
+  margin-bottom: 0.75rem;
+  padding: 0.5rem;
+  background: var(--bg);
+  border-radius: 8px;
+}
+
+.dialect-example {
+  font-size: 0.9rem;
+  color: var(--text-light);
+  padding: 0.75rem;
+  background: #fef3c7;
+  border-radius: 8px;
+  border-left: 3px solid var(--accent);
+}
+
+.dialect-quiz {
+  background: white;
+  padding: 2rem;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  max-width: 600px;
+  margin: 2rem auto;
+  text-align: center;
+}
+
+.dialect-quiz h3 {
+  margin-bottom: 1rem;
+  color: var(--primary);
+}
+
+.dialect-quiz p {
+  font-size: 1.2rem;
+  margin-bottom: 1.5rem;
+  font-weight: 500;
+}
+
+.quiz-options {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.quiz-option {
+  padding: 1rem;
+  border: 2px solid var(--border);
+  background: white;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.3s;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.quiz-option:hover {
+  border-color: var(--primary);
+  background: var(--bg);
+  transform: translateY(-2px);
+}
+
+.quiz-correct {
+  color: var(--success);
+  font-weight: bold;
+  font-size: 1.2rem;
+}
+
+.quiz-wrong {
+  color: #ef4444;
+  font-weight: bold;
+  font-size: 1.2rem;
+}
+
+/* ========== 旅行记忆墙样式 ========== */
+.memory-input {
+  background: white;
+  padding: 2rem;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  margin-bottom: 2rem;
+}
+
+.memory-form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.memory-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.memory-item {
+  background: white;
+  padding: 1.5rem;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  border-left: 4px solid var(--primary);
+  position: relative;
+  transition: all 0.3s;
+}
+
+.memory-item:hover {
+  transform: translateX(5px);
+  box-shadow: var(--shadow-lg);
+}
+
+.memory-date {
+  font-size: 0.85rem;
+  color: var(--text-light);
+  margin-bottom: 0.5rem;
+}
+
+.memory-content {
+  position: relative;
+}
+
+.memory-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.memory-header h3 {
+  font-size: 1.2rem;
+  flex: 1;
+}
+
+.memory-mood {
+  font-size: 1.5rem;
+}
+
+.memory-location {
+  font-size: 0.9rem;
+  color: var(--text-light);
+  margin-bottom: 0.75rem;
+}
+
+.memory-text {
+  line-height: 1.6;
+  margin-bottom: 1rem;
+}
+
+.memory-delete {
+  padding: 0.4rem 0.8rem;
+  background: #fee2e2;
+  color: #ef4444;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.3s;
+}
+
+.memory-delete:hover {
+  background: #ef4444;
+  color: white;
+}
+
+.memory-empty {
+  text-align: center;
+  padding: 3rem;
+  color: var(--text-light);
+}
+
+.empty-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+
+/* ========== 天气助手样式 ========== */
+.weather-form {
+  max-width: 500px;
+  margin: 0 auto 2rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.weather-form label {
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.weather-result {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.weather-card {
+  background: white;
+  padding: 2rem;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  text-align: center;
+}
+
+.weather-card h3 {
+  font-size: 1.8rem;
+  margin-bottom: 1.5rem;
+  color: var(--primary);
+}
+
+.weather-info {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+}
+
+.weather-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: var(--bg);
+  border-radius: var(--radius);
+}
+
+.weather-icon {
+  font-size: 2rem;
+}
+
+.weather-label {
+  font-size: 0.9rem;
+  color: var(--text-light);
+}
+
+.weather-value {
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--text);
+}
+
+/* ========== 城市冷知识样式 ========== */
+.trivia-form {
+  max-width: 500px;
+  margin: 0 auto 2rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.trivia-form label {
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.trivia-quiz {
+  background: white;
+  padding: 2rem;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  max-width: 700px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.trivia-quiz h3 {
+  font-size: 1.3rem;
+  margin-bottom: 1.5rem;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.trivia-options {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.trivia-option {
+  padding: 1rem;
+  border: 2px solid var(--border);
+  background: white;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.3s;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.trivia-option:hover {
+  border-color: var(--primary);
+  background: var(--bg);
+  transform: translateY(-2px);
+}
+
+.trivia-correct {
+  color: var(--success);
+  font-weight: bold;
+  font-size: 1.2rem;
+}
+
+.trivia-wrong {
+  color: #ef4444;
+  font-weight: bold;
+  font-size: 1.2rem;
+}
+
+/* ========== 预算计算器样式补充 ========== */
+.budget-form {
+  background: white;
+  padding: 2rem;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  margin-bottom: 2rem;
+}
+
+.budget-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.budget-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.budget-field label {
+  font-weight: 500;
+  color: var(--text);
+}
+
+.budget-result {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.budget-overview {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: white;
+  padding: 2rem;
+  border-radius: var(--radius-lg);
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.budget-total {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.total-label {
+  font-size: 1rem;
+  opacity: 0.9;
+}
+
+.total-amount {
+  font-size: 3rem;
+  font-weight: bold;
+}
+
+.total-per-person {
+  font-size: 1rem;
+  opacity: 0.9;
+}
+
+.budget-breakdown {
+  background: white;
+  padding: 1.5rem;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  margin-bottom: 1.5rem;
+}
+
+.budget-chart {
+  background: white;
+  padding: 1.5rem;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  margin-bottom: 1.5rem;
+}
+
+.budget-tips {
+  background: #fef3c7;
+  padding: 1.5rem;
+  border-radius: var(--radius);
+  border-left: 4px solid var(--accent);
+}
+
+/* ========== 响应式补充 ========== */
+@media (max-width: 768px) {
+  .dialect-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .quiz-options,
+  .trivia-options {
+    grid-template-columns: 1fr;
+  }
+  
+  .memory-form-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .weather-info {
+    grid-template-columns: 1fr;
+  }
+  
+  .budget-row {
+    grid-template-columns: 1fr;
+  }
+}
