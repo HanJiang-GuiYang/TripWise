@@ -1143,8 +1143,470 @@ function shareJournal() {
   alert('📤 分享链接已复制！（演示功能）');
 }
 
+// ========== 旅行预算计算器 ==========
+const cityCostLevel = {
+  '北京': { hotel: { budget: 150, comfort: 300, luxury: 600 }, food: { budget: 60, comfort: 120, luxury: 250 }, ticket: 80, transport_local: 30 },
+  '上海': { hotel: { budget: 180, comfort: 350, luxury: 700 }, food: { budget: 70, comfort: 130, luxury: 280 }, ticket: 70, transport_local: 30 },
+  '成都': { hotel: { budget: 100, comfort: 220, luxury: 500 }, food: { budget: 40, comfort: 90, luxury: 200 }, ticket: 50, transport_local: 20 },
+  '贵阳': { hotel: { budget: 80, comfort: 180, luxury: 400 }, food: { budget: 35, comfort: 80, luxury: 180 }, ticket: 60, transport_local: 20 },
+  '广州': { hotel: { budget: 150, comfort: 300, luxury: 600 }, food: { budget: 50, comfort: 110, luxury: 230 }, ticket: 60, transport_local: 25 },
+  '杭州': { hotel: { budget: 150, comfort: 300, luxury: 600 }, food: { budget: 55, comfort: 110, luxury: 230 }, ticket: 70, transport_local: 25 },
+  '厦门': { hotel: { budget: 120, comfort: 250, luxury: 550 }, food: { budget: 45, comfort: 100, luxury: 220 }, ticket: 50, transport_local: 20 },
+  '重庆': { hotel: { budget: 100, comfort: 220, luxury: 500 }, food: { budget: 40, comfort: 90, luxury: 200 }, ticket: 50, transport_local: 20 },
+  '西安': { hotel: { budget: 100, comfort: 220, luxury: 480 }, food: { budget: 40, comfort: 85, luxury: 190 }, ticket: 80, transport_local: 20 },
+  '南京': { hotel: { budget: 130, comfort: 260, luxury: 550 }, food: { budget: 45, comfort: 100, luxury: 210 }, ticket: 60, transport_local: 20 },
+  '武汉': { hotel: { budget: 100, comfort: 220, luxury: 480 }, food: { budget: 40, comfort: 90, luxury: 200 }, ticket: 50, transport_local: 20 },
+  '长沙': { hotel: { budget: 100, comfort: 220, luxury: 480 }, food: { budget: 40, comfort: 90, luxury: 200 }, ticket: 50, transport_local: 20 },
+  '深圳': { hotel: { budget: 180, comfort: 350, luxury: 700 }, food: { budget: 60, comfort: 120, luxury: 260 }, ticket: 60, transport_local: 30 },
+  '青岛': { hotel: { budget: 120, comfort: 260, luxury: 550 }, food: { budget: 50, comfort: 110, luxury: 240 }, ticket: 50, transport_local: 25 },
+  '三亚': { hotel: { budget: 150, comfort: 350, luxury: 800 }, food: { budget: 50, comfort: 120, luxury: 280 }, ticket: 100, transport_local: 30 },
+  '昆明': { hotel: { budget: 80, comfort: 200, luxury: 450 }, food: { budget: 35, comfort: 80, luxury: 180 }, ticket: 60, transport_local: 20 }
+};
+
+const transportCost = { train: 300, plane: 800, self: 500 };
+
+function calculateBudget() {
+  const dest = document.getElementById('budget-dest').value;
+  const people = parseInt(document.getElementById('budget-people').value);
+  const days = parseInt(document.getElementById('budget-days').value);
+  const hotel = document.getElementById('budget-hotel').value;
+  const food = document.getElementById('budget-food').value;
+  const transport = document.getElementById('budget-transport').value;
+
+  if (!dest) { alert('请选择目的地'); return; }
+
+  const cost = cityCostLevel[dest] || cityCostLevel['北京'];
+  const hotelPerNight = cost.hotel[hotel];
+  const foodPerDay = cost.food[food];
+  const ticketPerDay = cost.ticket;
+  const localTransportPerDay = cost.transport_local;
+  const bigTransport = transportCost[transport];
+
+  const hotelTotal = hotelPerNight * (days - 1) * Math.ceil(people / 2);
+  const foodTotal = foodPerDay * days * people;
+  const ticketTotal = ticketPerDay * days * people;
+  const localTransportTotal = localTransportPerDay * days * people;
+  const bigTransportTotal = bigTransport * people * 2;
+  const shoppingBudget = Math.floor((hotelTotal + foodTotal + ticketTotal) * 0.15);
+  const total = hotelTotal + foodTotal + ticketTotal + localTransportTotal + bigTransportTotal + shoppingBudget;
+  const perPerson = Math.round(total / people);
+
+  document.getElementById('budget-result').style.display = 'block';
+  document.getElementById('budget-total-amount').textContent = `¥${total.toLocaleString()}`;
+  document.getElementById('budget-per-person').textContent = `人均 ¥${perPerson.toLocaleString()}`;
+
+  const items = [
+    { name: '🚄 大交通（往返）', amount: bigTransportTotal, color: '#6366f1', percent: 0 },
+    { name: '🏨 住宿', amount: hotelTotal, color: '#ec4899', percent: 0 },
+    { name: '🍜 餐饮', amount: foodTotal, color: '#f59e0b', percent: 0 },
+    { name: '🎫 门票', amount: ticketTotal, color: '#10b981', percent: 0 },
+    { name: '🚇 市内交通', amount: localTransportTotal, color: '#8b5cf6', percent: 0 },
+    { name: '🛍️ 购物/其他', amount: shoppingBudget, color: '#ef4444', percent: 0 }
+  ];
+  items.forEach(item => item.percent = Math.round(item.amount / total * 100));
+
+  document.getElementById('budget-breakdown').innerHTML = `
+    <h4>💸 费用明细</h4>
+    ${items.map(item => `
+    <div class="budget-item">
+      <div class="budget-item-header">
+        <span>${item.name}</span>
+        <span class="budget-item-amount">¥${item.amount.toLocaleString()}</span>
+      </div>
+      <div class="budget-item-bar">
+        <div class="budget-item-fill" style="width:${item.percent}%;background:${item.color}"></div>
+      </div>
+      <span class="budget-item-percent">${item.percent}%</span>
+    </div>
+  `).join('')}`;
+
+  const tips = getBudgetTips(dest, hotel, food, transport, days);
+  document.getElementById('budget-tips').innerHTML = `
+    <h4>💡 省钱小贴士</h4>
+    <div class="tips-grid">${tips.map(tip => `<div class="tip-item"><span class="tip-icon">${tip.icon}</span><span>${tip.text}</span></div>`).join('')}</div>
+  `;
+}
+
+function getBudgetTips(dest, hotel, food, transport, days) {
+  const tips = [
+    { icon: '🎫', text: '提前网上购票通常比现场便宜10-20%' },
+    { icon: '🏨', text: '工作日住宿比周末便宜30%以上' },
+    { icon: '🍜', text: '避开景区周边餐厅，本地人去的更实惠' },
+    { icon: '🚇', text: '办一张当地交通卡，地铁公交都有折扣' },
+  ];
+  if (transport === 'plane') tips.push({ icon: '✈️', text: '提前2周订票通常最便宜' });
+  if (hotel === 'luxury') tips.push({ icon: '🏡', text: '豪华型可以考虑民宿，性价比更高' });
+  if (days >= 5) tips.push({ icon: '📅', text: '5天以上行程建议购买景点联票' });
+  const cityTips = {
+    '北京': [{ icon: '🏛️', text: '很多博物馆免费，提前预约即可' }],
+    '成都': [{ icon: '🐼', text: '熊猫基地早上去，门票更值' }],
+    '三亚': [{ icon: '🏖️', text: '11-3月是旺季，避开春节价格减半' }],
+    '西安': [{ icon: '🏛️', text: '兵马俑学生票半价' }],
+  };
+  if (cityTips[dest]) tips.push(...cityTips[dest]);
+  return tips;
+}
+
+// ========== 方言课堂 ==========
+const dialectData = {
+  beijing: [
+    { phrase: '您好', dialect: '您好嘞', pinyin: 'nín hǎo lei', meaning: '打招呼，比"你好"更客气', example: '您好嘞，吃了吗您？' },
+    { phrase: '很好', dialect: '倍儿棒', pinyin: 'bèir bàng', meaning: '非常好，特别棒', example: '这烤鸭倍儿棒！' },
+    { phrase: '聊天', dialect: '侃大山', pinyin: 'kǎn dà shān', meaning: '闲聊、聊天', example: '咱俩找个地方侃大山去' },
+    { phrase: '厉害', dialect: '牛', pinyin: 'niú', meaning: '很厉害、很出色', example: '这哥们儿真牛！' },
+    { phrase: '舒服', dialect: '舒坦', pinyin: 'shū tan', meaning: '舒服、惬意', example: '这澡洗得真舒坦' },
+    { phrase: '别说了', dialect: '得嘞', pinyin: 'děi lei', meaning: '好的、知道了（表示同意）', example: '得嘞，我明白了' }
+  ],
+  shanghai: [
+    { phrase: '你好', dialect: '侬好', pinyin: 'nóng hǎo', meaning: '你好（上海话打招呼）', example: '侬好，饭吃过伐？' },
+    { phrase: '谢谢', dialect: '谢谢侬', pinyin: 'xià xià nóng', meaning: '谢谢你', example: '谢谢侬帮我拿东西' },
+    { phrase: '很好', dialect: '老灵额', pinyin: 'lǎo líng e', meaning: '很好、很棒', example: '这家餐厅老灵额！' },
+    { phrase: '不要', dialect: '勿要', pinyin: 'vè yào', meaning: '不要', example: '勿要客气，随便坐' },
+    { phrase: '什么', dialect: '啥', pinyin: 'shà', meaning: '什么', example: '侬吃啥？' },
+    { phrase: '好玩', dialect: '好白相', pinyin: 'ho bā xiàng', meaning: '好玩、有趣', example: '迪士尼好白相！' }
+  ],
+  chengdu: [
+    { phrase: '你好', dialect: '你好哇', pinyin: 'nǐ hǎo wa', meaning: '你好（四川话打招呼）', example: '你好哇，吃火锅不？' },
+    { phrase: '很好', dialect: '巴适', pinyin: 'bā shì', meaning: '很好、舒服、满意', example: '这个火锅巴适得很！' },
+    { phrase: '聊天', dialect: '摆龙门阵', pinyin: 'bǎi lóng mén zhèn', meaning: '聊天、闲谈', example: '来摆龙门阵嘛' },
+    { phrase: '厉害', dialect: '凶', pinyin: 'xiōng', meaning: '很厉害', example: '这个人凶得很' },
+    { phrase: '不要', dialect: '莫要', pinyin: 'mò yào', meaning: '不要', example: '莫要客气' },
+    { phrase: '什么', dialect: '啥子', pinyin: 'shá zi', meaning: '什么', example: '你吃啥子？' }
+  ],
+  guangzhou: [
+    { phrase: '你好', dialect: '雷猴', pinyin: 'léi hóu', meaning: '你好（粤语）', example: '雷猴，食左饭未？' },
+    { phrase: '谢谢', dialect: '多谢', pinyin: 'do ze', meaning: '谢谢', example: '多谢你帮我' },
+    { phrase: '很好', dialect: '好犀利', pinyin: 'hou sai lei', meaning: '很厉害', example: '你好犀利啊' },
+    { phrase: '不要', dialect: '唔使', pinyin: 'm sai', meaning: '不用', example: '唔使客气' },
+    { phrase: '什么', dialect: '咩', pinyin: 'mie', meaning: '什么', example: '你食咩？' },
+    { phrase: '好吃', dialect: '好味', pinyin: 'hou mei', meaning: '好吃', example: '呢间野好味' }
+  ],
+  chongqing: [
+    { phrase: '你好', dialect: '你好撒', pinyin: 'nǐ hǎo sa', meaning: '你好', example: '你好撒，吃火锅没？' },
+    { phrase: '很好', dialect: '巴适得板', pinyin: 'bā shì dé bǎn', meaning: '非常好', example: '这个火锅巴适得板' },
+    { phrase: '聊天', dialect: '摆龙门阵', pinyin: 'bǎi lóng mén zhèn', meaning: '聊天', example: '来摆龙门阵嘛' },
+    { phrase: '厉害', dialect: '凶', pinyin: 'xiōng', meaning: '很厉害', example: '这个人凶得很' },
+    { phrase: '不要', dialect: '莫得', pinyin: 'mò dé', meaning: '没有', example: '莫得问题' },
+    { phrase: '什么', dialect: '啥子', pinyin: 'shá zi', meaning: '什么', example: '你吃啥子？' }
+  ],
+  xian: [
+    { phrase: '你好', dialect: '你好嘛', pinyin: 'nǐ hǎo ma', meaning: '你好', example: '你好嘛，吃泡馍没？' },
+    { phrase: '很好', dialect: '美得很', pinyin: 'měi dé hěn', meaning: '很好', example: '这个泡馍美得很' },
+    { phrase: '聊天', dialect: '谝闲传', pinyin: 'pián xián chuán', meaning: '聊天', example: '来谝闲传嘛' },
+    { phrase: '厉害', dialect: '扎势', pinyin: 'zhā shì', meaning: '很厉害', example: '这个人扎势得很' },
+    { phrase: '不要', dialect: '包', pinyin: 'bāo', meaning: '不要', example: '包客气' },
+    { phrase: '什么', dialect: '啥', pinyin: 'shá', meaning: '什么', example: '你吃啥？' }
+  ],
+  hangzhou: [
+    { phrase: '你好', dialect: '侬好', pinyin: 'nóng hǎo', meaning: '你好', example: '侬好，吃饭没？' },
+    { phrase: '很好', dialect: '蛮好', pinyin: 'mán hǎo', meaning: '很好', example: '这个菜蛮好' },
+    { phrase: '聊天', dialect: '谈天', pinyin: 'tán tiān', meaning: '聊天', example: '来谈天嘛' },
+    { phrase: '厉害', dialect: '结棍', pinyin: 'jié gùn', meaning: '很厉害', example: '这个人结棍得很' },
+    { phrase: '不要', dialect: '覅', pinyin: 'fiào', meaning: '不要', example: '覅客气' },
+    { phrase: '什么', dialect: '啥', pinyin: 'shá', meaning: '什么', example: '你吃啥？' }
+  ],
+  changsha: [
+    { phrase: '你好', dialect: '你好噻', pinyin: 'nǐ hǎo sāi', meaning: '你好', example: '你好噻，吃米粉没？' },
+    { phrase: '很好', dialect: '韵味', pinyin: 'yùn wèi', meaning: '很好', example: '这个菜韵味' },
+    { phrase: '聊天', dialect: '谈天', pinyin: 'tán tiān', meaning: '聊天', example: '来谈天嘛' },
+    { phrase: '厉害', dialect: '灵泛', pinyin: 'líng fàn', meaning: '很聪明', example: '这个人灵泛得很' },
+    { phrase: '不要', dialect: '莫', pinyin: 'mò', meaning: '不要', example: '莫客气' },
+    { phrase: '什么', dialect: '么子', pinyin: 'mó zi', meaning: '什么', example: '你吃么子？' }
+  ],
+  xiamen: [
+    { phrase: '你好', dialect: '你好', pinyin: 'lí hó', meaning: '你好（闽南语）', example: '你好，吃饭未？' },
+    { phrase: '谢谢', dialect: '多谢', pinyin: 'to siā', meaning: '谢谢', example: '多谢你' },
+    { phrase: '很好', dialect: '真好', pinyin: 'chin hó', meaning: '很好', example: '这个菜真好' },
+    { phrase: '不要', dialect: '免', pinyin: 'bián', meaning: '不用', example: '免客气' },
+    { phrase: '什么', dialect: '啥', pinyin: 'siáⁿ', meaning: '什么', example: '你吃啥？' },
+    { phrase: '好吃', dialect: '好食', pinyin: 'hó chia̍h', meaning: '好吃', example: '这个好食' }
+  ],
+  wuhan: [
+    { phrase: '你好', dialect: '你好啊', pinyin: 'nǐ hǎo a', meaning: '你好', example: '你好啊，吃热干面没？' },
+    { phrase: '很好', dialect: '蛮好', pinyin: 'mán hǎo', meaning: '很好', example: '这个菜蛮好' },
+    { phrase: '聊天', dialect: '咵天', pinyin: 'kuǎ tiān', meaning: '聊天', example: '来咵天嘛' },
+    { phrase: '厉害', dialect: '灵光', pinyin: 'líng guāng', meaning: '很厉害', example: '这个人灵光得很' },
+    { phrase: '不要', dialect: '莫', pinyin: 'mò', meaning: '不要', example: '莫客气' },
+    { phrase: '什么', dialect: '么事', pinyin: 'mó shì', meaning: '什么', example: '你吃么事？' }
+  ]
+};
+
+const dialectCityNames = { beijing: '北京', shanghai: '上海', chengdu: '成都', guangzhou: '广州', chongqing: '重庆', xian: '西安', hangzhou: '杭州', changsha: '长沙', xiamen: '厦门', wuhan: '武汉' };
+
+function renderDialects() {
+  const city = document.getElementById('dialect-city').value;
+  const dialects = dialectData[city] || [];
+  const grid = document.getElementById('dialect-grid');
+
+  grid.innerHTML = dialects.map(d => `
+    <div class="dialect-card">
+      <div class="dialect-phrase">${d.phrase}</div>
+      <div class="dialect-dialect">${d.dialect}</div>
+      <div class="dialect-pinyin">${d.pinyin}</div>
+      <div class="dialect-meaning">${d.meaning}</div>
+      <div class="dialect-example">例句：${d.example}</div>
+    </div>
+  `).join('');
+}
+
+function startDialectQuiz() {
+  const city = document.getElementById('dialect-city').value;
+  const dialects = dialectData[city] || [];
+  if (dialects.length === 0) return;
+
+  const quiz = dialects[Math.floor(Math.random() * dialects.length)];
+  const options = [quiz.dialect];
+
+  while (options.length < 4) {
+    const random = dialects[Math.floor(Math.random() * dialects.length)];
+    if (!options.includes(random.dialect)) {
+      options.push(random.dialect);
+    }
+  }
+
+  options.sort(() => Math.random() - 0.5);
+
+  document.getElementById('quiz-question').textContent = `"${quiz.phrase}"用${dialectCityNames[city]}话怎么说？`;
+  document.getElementById('quiz-options').innerHTML = options.map(opt => `
+    <button class="quiz-option" onclick="checkQuizAnswer('${opt}', '${quiz.dialect}')">${opt}</button>
+  `).join('');
+  document.getElementById('quiz-result').style.display = 'none';
+}
+
+function checkQuizAnswer(selected, correct) {
+  const result = document.getElementById('quiz-result');
+  result.style.display = 'block';
+  if (selected === correct) {
+    result.innerHTML = `<span class="quiz-correct">✓ 答对了！</span>`;
+  } else {
+    result.innerHTML = `<span class="quiz-wrong">✗ 答错了，正确答案是：${correct}</span>`;
+  }
+}
+
+// ========== 旅行记忆墙 ==========
+let travelMemories = JSON.parse(localStorage.getItem('travelMemories') || '[]');
+
+function addMemory() {
+  const title = document.getElementById('memory-title').value.trim();
+  const location = document.getElementById('memory-location').value.trim();
+  const mood = document.getElementById('memory-mood').value;
+  const text = document.getElementById('memory-text').value.trim();
+
+  if (!title || !text) {
+    alert('请填写标题和感受');
+    return;
+  }
+
+  const memory = {
+    id: Date.now(),
+    title,
+    location,
+    mood,
+    text,
+    date: new Date().toLocaleDateString('zh-CN')
+  };
+
+  travelMemories.unshift(memory);
+  localStorage.setItem('travelMemories', JSON.stringify(travelMemories));
+
+  document.getElementById('memory-title').value = '';
+  document.getElementById('memory-location').value = '';
+  document.getElementById('memory-text').value = '';
+
+  renderMemories();
+}
+
+function deleteMemory(id) {
+  if (confirm('确定要删除这条记忆吗？')) {
+    travelMemories = travelMemories.filter(m => m.id !== id);
+    localStorage.setItem('travelMemories', JSON.stringify(travelMemories));
+    renderMemories();
+  }
+}
+
+function renderMemories() {
+  const timeline = document.getElementById('memory-timeline');
+  const empty = document.getElementById('memory-empty');
+
+  if (travelMemories.length === 0) {
+    timeline.style.display = 'none';
+    empty.style.display = 'block';
+    return;
+  }
+
+  timeline.style.display = 'block';
+  empty.style.display = 'none';
+
+  const moodEmojis = {
+    happy: '😊',
+    excited: '🤩',
+    peaceful: '😌',
+    touched: '🥹',
+    surprised: '😲'
+  };
+
+  timeline.innerHTML = travelMemories.map(m => `
+    <div class="memory-item">
+      <div class="memory-date">${m.date}</div>
+      <div class="memory-content">
+        <div class="memory-header">
+          <h3>${escapeHtml(m.title)}</h3>
+          <span class="memory-mood">${moodEmojis[m.mood] || '😊'}</span>
+        </div>
+        ${m.location ? `<div class="memory-location">📍 ${escapeHtml(m.location)}</div>` : ''}
+        <p class="memory-text">${escapeHtml(m.text)}</p>
+        <button class="memory-delete" onclick="deleteMemory(${m.id})">删除</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ========== 旅行天气助手 ==========
+const cityWeatherData = {
+  '北京': { temp: '15-25°C', weather: '晴转多云', tip: '早晚温差大，注意添衣', best: '9-10月' },
+  '上海': { temp: '18-26°C', weather: '多云', tip: '梅雨季备好雨具', best: '3-5月' },
+  '成都': { temp: '16-24°C', weather: '阴', tip: '潮湿多雨，带伞', best: '3-6月' },
+  '贵阳': { temp: '14-22°C', weather: '多云转小雨', tip: '天无三日晴，带伞', best: '5-9月' },
+  '广州': { temp: '22-30°C', weather: '多云', tip: '回南天注意防潮', best: '10-12月' },
+  '杭州': { temp: '16-25°C', weather: '晴', tip: '西湖边多雨带伞', best: '3-5月' },
+  '厦门': { temp: '20-28°C', weather: '晴', tip: '海边注意防晒', best: '3-5月' },
+  '重庆': { temp: '18-28°C', weather: '多云', tip: '夏季炎热注意防暑', best: '3-6月' },
+  '西安': { temp: '12-24°C', weather: '晴', tip: '春秋季多风沙', best: '3-5月' },
+  '南京': { temp: '14-24°C', weather: '多云', tip: '秋季栖霞山赏枫', best: '3-5月' },
+  '武汉': { temp: '16-28°C', weather: '晴', tip: '夏季炎热注意防暑', best: '3-5月' },
+  '长沙': { temp: '16-26°C', weather: '多云', tip: '湘菜偏辣备好肠胃药', best: '3-5月' },
+  '深圳': { temp: '22-30°C', weather: '晴转多云', tip: '全年温暖注意防晒', best: '10-12月' },
+  '青岛': { temp: '14-22°C', weather: '多云', tip: '海边早晚温差大', best: '5-9月' },
+  '三亚': { temp: '25-32°C', weather: '晴', tip: '全年可游泳带泳衣', best: '11-3月' },
+  '昆明': { temp: '15-24°C', weather: '晴', tip: '四季如春带薄外套', best: '3-5月' }
+};
+
+function checkWeather() {
+  const city = document.getElementById('weather-city').value;
+  const data = cityWeatherData[city] || cityWeatherData['北京'];
+
+  document.getElementById('weather-result').style.display = 'block';
+  document.getElementById('weather-city-name').textContent = city;
+  document.getElementById('weather-temp').textContent = data.temp;
+  document.getElementById('weather-condition').textContent = data.weather;
+  document.getElementById('weather-tip').textContent = data.tip;
+  document.getElementById('weather-best').textContent = data.best;
+}
+
+// ========== 城市冷知识问答 ==========
+const cityTriviaData = {
+  '北京': [
+    { q: '故宫有多少间房间？', a: '9999间半', options: ['9999间半', '10000间', '8888间', '9999间'] },
+    { q: '北京地铁最老的线路是？', a: '1号线', options: ['1号线', '2号线', '10号线', '13号线'] },
+    { q: '烤鸭起源于哪个朝代？', a: '明朝', options: ['唐朝', '宋朝', '明朝', '清朝'] }
+  ],
+  '上海': [
+    { q: '外滩有多少栋建筑？', a: '52栋', options: ['52栋', '48栋', '56栋', '60栋'] },
+    { q: '上海地铁日客流量最高达？', a: '1000万', options: ['800万', '1000万', '1200万', '1500万'] },
+    { q: '城隍庙始建于哪一年？', a: '1403年', options: ['1403年', '1503年', '1603年', '1703年'] }
+  ],
+  '成都': [
+    { q: '成都得名于什么？', a: '一年成邑，二年成都', options: ['一年成邑，二年成都', '成都是平原', '成都人成事', '成都水好'] },
+    { q: '武侯祠纪念的是谁？', a: '诸葛亮', options: ['刘备', '诸葛亮', '关羽', '张飞'] },
+    { q: '都江堰建于哪一年？', a: '公元前256年', options: ['公元前256年', '公元前156年', '公元前356年', '公元前456年'] }
+  ],
+  '贵阳': [
+    { q: '贵阳为什么叫贵阳？', a: '位于贵山之南', options: ['位于贵山之南', '位于贵山之北', '贵阳光照好', '贵阳人多'] },
+    { q: '黄果树瀑布高多少米？', a: '77.8米', options: ['77.8米', '67.8米', '87.8米', '97.8米'] },
+    { q: '甲秀楼建于哪一年？', a: '1598年', options: ['1598年', '1698年', '1798年', '1898年'] }
+  ],
+  '广州': [
+    { q: '广州有多少年历史？', a: '2200年', options: ['2200年', '2000年', '1800年', '2500年'] },
+    { q: '五羊传说中有几只羊？', a: '5只', options: ['3只', '4只', '5只', '6只'] },
+    { q: '广州塔别名是什么？', a: '小蛮腰', options: ['小蛮腰', '大蛮腰', '细蛮腰', '粗蛮腰'] }
+  ],
+  '杭州': [
+    { q: '西湖十景不包括哪个？', a: '三潭印月', options: ['断桥残雪', '苏堤春晓', '三潭印月', '雷峰夕照'] },
+    { q: '龙井茶产于哪里？', a: '杭州', options: ['苏州', '杭州', '南京', '上海'] },
+    { q: '灵隐寺建于哪一年？', a: '326年', options: ['326年', '426年', '526年', '626年'] }
+  ],
+  '厦门': [
+    { q: '鼓浪屿面积多大？', a: '1.88平方公里', options: ['1.88平方公里', '2.88平方公里', '0.88平方公里', '3.88平方公里'] },
+    { q: '厦门大学建于哪一年？', a: '1921年', options: ['1921年', '1911年', '1931年', '1941年'] },
+    { q: '南普陀寺始建于哪一年？', a: '唐代', options: ['唐代', '宋代', '明代', '清代'] }
+  ],
+  '重庆': [
+    { q: '重庆为什么叫山城？', a: '多山', options: ['多山', '多水', '多桥', '多洞'] },
+    { q: '洪崖洞有多少层？', a: '11层', options: ['9层', '10层', '11层', '12层'] },
+    { q: '长江索道全长多少米？', a: '1166米', options: ['1066米', '1166米', '1266米', '1366米'] }
+  ],
+  '西安': [
+    { q: '兵马俑有多少个坑？', a: '3个', options: ['2个', '3个', '4个', '5个'] },
+    { q: '大雁塔建于哪一年？', a: '652年', options: ['652年', '752年', '852年', '952年'] },
+    { q: '西安城墙周长多少公里？', a: '13.7公里', options: ['11.7公里', '12.7公里', '13.7公里', '14.7公里'] }
+  ],
+  '南京': [
+    { q: '南京有多少朝古都？', a: '六朝', options: ['四朝', '五朝', '六朝', '七朝'] },
+    { q: '中山陵有多少级台阶？', a: '392级', options: ['292级', '392级', '492级', '592级'] },
+    { q: '夫子庙始建于哪一年？', a: '1034年', options: ['1034年', '1134年', '1234年', '1334年'] }
+  ],
+  '武汉': [
+    { q: '黄鹤楼始建于哪一年？', a: '223年', options: ['223年', '323年', '423年', '523年'] },
+    { q: '武汉有多少个区？', a: '13个', options: ['11个', '12个', '13个', '14个'] },
+    { q: '长江大桥全长多少米？', a: '1670米', options: ['1570米', '1670米', '1770米', '1870米'] }
+  ],
+  '长沙': [
+    { q: '橘子洲全长多少公里？', a: '5公里', options: ['3公里', '4公里', '5公里', '6公里'] },
+    { q: '岳麓书院建于哪一年？', a: '976年', options: ['976年', '1076年', '1176年', '1276年'] },
+    { q: '湖南省博有多少件文物？', a: '18万件', options: ['16万件', '17万件', '18万件', '19万件'] }
+  ],
+  '深圳': [
+    { q: '深圳经济特区成立于哪一年？', a: '1980年', options: ['1978年', '1979年', '1980年', '1981年'] },
+    { q: '深圳最高楼是多少米？', a: '599米', options: ['599米', '699米', '799米', '899米'] },
+    { q: '深圳有多少个区？', a: '9个', options: ['7个', '8个', '9个', '10个'] }
+  ],
+  '青岛': [
+    { q: '栈桥建于哪一年？', a: '1892年', options: ['1892年', '1902年', '1912年', '1922年'] },
+    { q: '青岛啤酒节在几月？', a: '8月', options: ['6月', '7月', '8月', '9月'] },
+    { q: '崂山最高峰多少米？', a: '1133米', options: ['1033米', '1133米', '1233米', '1333米'] }
+  ],
+  '三亚': [
+    { q: '天涯海角有多远？', a: '2.5公里', options: ['1.5公里', '2.5公里', '3.5公里', '4.5公里'] },
+    { q: '南山海上观音高多少米？', a: '108米', options: ['98米', '108米', '118米', '128米'] },
+    { q: '亚龙湾沙滩长多少公里？', a: '7公里', options: ['5公里', '6公里', '7公里', '8公里'] }
+  ],
+  '昆明': [
+    { q: '滇池面积多大？', a: '330平方公里', options: ['230平方公里', '330平方公里', '430平方公里', '530平方公里'] },
+    { q: '石林形成于多少年前？', a: '2.7亿年', options: ['1.7亿年', '2.7亿年', '3.7亿年', '4.7亿年'] },
+    { q: '昆明为什么叫春城？', a: '四季如春', options: ['四季如春', '春天多', '春花多', '春风多'] }
+  ]
+};
+
+function startCityTrivia() {
+  const city = document.getElementById('trivia-city').value;
+  const questions = cityTriviaData[city] || [];
+  if (questions.length === 0) return;
+
+  const q = questions[Math.floor(Math.random() * questions.length)];
+  const options = [...q.options].sort(() => Math.random() - 0.5);
+
+  document.getElementById('trivia-question').textContent = q.q;
+  document.getElementById('trivia-options').innerHTML = options.map(opt => `
+    <button class="trivia-option" onclick="checkTriviaAnswer('${opt}', '${q.a}')">${opt}</button>
+  `).join('');
+  document.getElementById('trivia-result').style.display = 'none';
+}
+
+function checkTriviaAnswer(selected, correct) {
+  const result = document.getElementById('trivia-result');
+  result.style.display = 'block';
+  if (selected === correct) {
+    result.innerHTML = `<span class="trivia-correct">✓ 答对了！</span>`;
+  } else {
+    result.innerHTML = `<span class="trivia-wrong">✗ 答错了，正确答案是：${correct}</span>`;
+  }
+}
+
 // ========== 初始化 ==========
 initCitySelect();
 initLandmarks();
 initChat();
 updateAiStatus();
+renderDialects();
+startDialectQuiz();
+renderMemories();

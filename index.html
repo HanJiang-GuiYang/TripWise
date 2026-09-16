@@ -33,6 +33,11 @@
       <button class="nav-btn" data-tab="landmarks"><span>📍</span>地标打卡</button>
       <button class="nav-btn" data-tab="blindbox"><span>🎁</span>探店盲盒</button>
       <button class="nav-btn" data-tab="journal"><span>📔</span>旅行手账</button>
+      <button class="nav-btn" data-tab="budget"><span>💰</span>预算计算器</button>
+      <button class="nav-btn" data-tab="dialect"><span>🗣️</span>方言课堂</button>
+      <button class="nav-btn" data-tab="memory"><span>📸</span>旅行记忆</button>
+      <button class="nav-btn" data-tab="weather"><span>🌤️</span>天气助手</button>
+      <button class="nav-btn" data-tab="trivia"><span>🎯</span>城市冷知识</button>
       <button class="nav-btn" data-tab="ai"><span>🤖</span>AI顾问</button>
     </nav>
   </header>
@@ -287,6 +292,248 @@
           <button class="btn btn-outline" onclick="downloadJournal()">📥 保存图片</button>
           <button class="btn btn-outline" onclick="shareJournal()">📤 分享</button>
         </div>
+      </div>
+    </section>
+
+    <!-- ========== 预算计算器 ========== -->
+    <section class="tab-content" id="tab-budget">
+      <div class="section-header">
+        <h2>💰 旅行预算计算器</h2>
+        <p>智能估算你的旅行花费，让每一分钱都花在刀刃上</p>
+      </div>
+      <div class="budget-form">
+        <div class="budget-row">
+          <div class="budget-field">
+            <label>目的地</label>
+            <select class="input select" id="budget-dest">
+              <option value="北京">北京</option>
+              <option value="上海">上海</option>
+              <option value="成都">成都</option>
+              <option value="贵阳">贵阳</option>
+              <option value="广州">广州</option>
+              <option value="杭州">杭州</option>
+              <option value="厦门">厦门</option>
+              <option value="重庆">重庆</option>
+              <option value="西安">西安</option>
+              <option value="南京">南京</option>
+              <option value="武汉">武汉</option>
+              <option value="长沙">长沙</option>
+              <option value="深圳">深圳</option>
+              <option value="青岛">青岛</option>
+              <option value="三亚">三亚</option>
+              <option value="昆明">昆明</option>
+            </select>
+          </div>
+          <div class="budget-field">
+            <label>出行人数</label>
+            <select class="input select" id="budget-people">
+              <option value="1">1人</option>
+              <option value="2" selected>2人</option>
+              <option value="3">3人</option>
+              <option value="4">4人</option>
+              <option value="5">5人以上</option>
+            </select>
+          </div>
+          <div class="budget-field">
+            <label>出行天数</label>
+            <select class="input select" id="budget-days">
+              <option value="1">1天</option>
+              <option value="2">2天</option>
+              <option value="3" selected>3天</option>
+              <option value="5">5天</option>
+              <option value="7">7天</option>
+            </select>
+          </div>
+        </div>
+        <div class="budget-row">
+          <div class="budget-field">
+            <label>住宿标准</label>
+            <select class="input select" id="budget-hotel">
+              <option value="budget">经济型（100-200/晚）</option>
+              <option value="comfort" selected>舒适型（200-400/晚）</option>
+              <option value="luxury">豪华型（400-800/晚）</option>
+            </select>
+          </div>
+          <div class="budget-field">
+            <label>餐饮标准</label>
+            <select class="input select" id="budget-food">
+              <option value="budget">简餐为主（50/天）</option>
+              <option value="comfort" selected>正常消费（100/天）</option>
+              <option value="luxury">美食探索（200/天）</option>
+            </select>
+          </div>
+          <div class="budget-field">
+            <label>交通方式</label>
+            <select class="input select" id="budget-transport">
+              <option value="train">火车/高铁</option>
+              <option value="plane" selected>飞机</option>
+              <option value="self">自驾</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-large" onclick="calculateBudget()">✨ 计算预算</button>
+      </div>
+      <div class="budget-result" id="budget-result" style="display:none;">
+        <div class="budget-overview">
+          <div class="budget-total">
+            <span class="total-label">预计总花费</span>
+            <span class="total-amount" id="budget-total-amount">¥0</span>
+            <span class="total-per-person" id="budget-per-person">人均 ¥0</span>
+          </div>
+        </div>
+        <div class="budget-breakdown" id="budget-breakdown"></div>
+        <div class="budget-tips" id="budget-tips"></div>
+      </div>
+    </section>
+
+    <!-- ========== 方言课堂 ========== -->
+    <section class="tab-content" id="tab-dialect">
+      <div class="section-header">
+        <h2>🗣️ 旅行方言小课堂</h2>
+        <p>学几句当地话，和当地人交朋友，让旅行更有温度</p>
+      </div>
+      <div class="dialect-selector">
+        <label>选择目的地：</label>
+        <select class="input select" id="dialect-city" onchange="renderDialects()">
+          <option value="beijing">北京</option>
+          <option value="shanghai">上海</option>
+          <option value="chengdu">成都</option>
+          <option value="guangzhou">广州</option>
+          <option value="chongqing">重庆</option>
+          <option value="xian">西安</option>
+          <option value="hangzhou">杭州</option>
+          <option value="changsha">长沙</option>
+          <option value="xiamen">厦门</option>
+          <option value="wuhan">武汉</option>
+        </select>
+      </div>
+      <div class="dialect-grid" id="dialect-grid"></div>
+      <div class="dialect-quiz" id="dialect-quiz">
+        <h3>🎯 方言小测试</h3>
+        <p id="quiz-question"></p>
+        <div class="quiz-options" id="quiz-options"></div>
+        <div class="quiz-result" id="quiz-result" style="display:none;"></div>
+        <button class="btn btn-outline" onclick="startDialectQuiz()">🔄 换一题</button>
+      </div>
+    </section>
+
+    <!-- ========== 旅行记忆墙 ========== -->
+    <section class="tab-content" id="tab-memory">
+      <div class="section-header">
+        <h2>📸 旅行记忆墙</h2>
+        <p>记录旅途中的美好瞬间，生成专属旅行时间线</p>
+      </div>
+      <div class="memory-input">
+        <div class="memory-form-row">
+          <input type="text" class="input" id="memory-title" placeholder="这一刻的标题（如：故宫的日落）">
+          <input type="text" class="input" id="memory-location" placeholder="地点（如：北京·故宫角楼）">
+          <select class="input select" id="memory-mood">
+            <option value="happy">😊 开心</option>
+            <option value="excited">🤩 兴奋</option>
+            <option value="peaceful">😌 平静</option>
+            <option value="touched">🥹 感动</option>
+            <option value="surprised">😲 惊喜</option>
+          </select>
+        </div>
+        <textarea class="textarea" id="memory-text" rows="3" placeholder="记录此刻的感受..."></textarea>
+        <button class="btn btn-primary" onclick="addMemory()">✨ 添加记忆</button>
+      </div>
+      <div class="memory-timeline" id="memory-timeline"></div>
+      <div class="memory-empty" id="memory-empty">
+        <div class="empty-icon">📸</div>
+        <p>还没有旅行记忆，添加你的第一条吧！</p>
+      </div>
+    </section>
+
+    <!-- ========== 天气助手 ========== -->
+    <section class="tab-content" id="tab-weather">
+      <div class="section-header">
+        <h2>🌤️ 旅行天气助手</h2>
+        <p>查看目的地天气，获取出行建议</p>
+      </div>
+      <div class="weather-form">
+        <label>选择城市：</label>
+        <select class="input select" id="weather-city">
+          <option value="北京">北京</option>
+          <option value="上海">上海</option>
+          <option value="成都">成都</option>
+          <option value="贵阳">贵阳</option>
+          <option value="广州">广州</option>
+          <option value="杭州">杭州</option>
+          <option value="厦门">厦门</option>
+          <option value="重庆">重庆</option>
+          <option value="西安">西安</option>
+          <option value="南京">南京</option>
+          <option value="武汉">武汉</option>
+          <option value="长沙">长沙</option>
+          <option value="深圳">深圳</option>
+          <option value="青岛">青岛</option>
+          <option value="三亚">三亚</option>
+          <option value="昆明">昆明</option>
+        </select>
+        <button class="btn btn-primary" onclick="checkWeather()">✨ 查询天气</button>
+      </div>
+      <div class="weather-result" id="weather-result" style="display:none;">
+        <div class="weather-card">
+          <h3 id="weather-city-name"></h3>
+          <div class="weather-info">
+            <div class="weather-item">
+              <span class="weather-icon">🌡️</span>
+              <span class="weather-label">温度</span>
+              <span class="weather-value" id="weather-temp"></span>
+            </div>
+            <div class="weather-item">
+              <span class="weather-icon">☁️</span>
+              <span class="weather-label">天气</span>
+              <span class="weather-value" id="weather-condition"></span>
+            </div>
+            <div class="weather-item">
+              <span class="weather-icon">💡</span>
+              <span class="weather-label">建议</span>
+              <span class="weather-value" id="weather-tip"></span>
+            </div>
+            <div class="weather-item">
+              <span class="weather-icon">📅</span>
+              <span class="weather-label">最佳旅游季</span>
+              <span class="weather-value" id="weather-best"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== 城市冷知识 ========== -->
+    <section class="tab-content" id="tab-trivia">
+      <div class="section-header">
+        <h2>🎯 城市冷知识问答</h2>
+        <p>测试你对城市的了解程度</p>
+      </div>
+      <div class="trivia-form">
+        <label>选择城市：</label>
+        <select class="input select" id="trivia-city">
+          <option value="北京">北京</option>
+          <option value="上海">上海</option>
+          <option value="成都">成都</option>
+          <option value="贵阳">贵阳</option>
+          <option value="广州">广州</option>
+          <option value="杭州">杭州</option>
+          <option value="厦门">厦门</option>
+          <option value="重庆">重庆</option>
+          <option value="西安">西安</option>
+          <option value="南京">南京</option>
+          <option value="武汉">武汉</option>
+          <option value="长沙">长沙</option>
+          <option value="深圳">深圳</option>
+          <option value="青岛">青岛</option>
+          <option value="三亚">三亚</option>
+          <option value="昆明">昆明</option>
+        </select>
+        <button class="btn btn-primary" onclick="startCityTrivia()">🎲 开始答题</button>
+      </div>
+      <div class="trivia-quiz">
+        <h3 id="trivia-question"></h3>
+        <div class="trivia-options" id="trivia-options"></div>
+        <div class="trivia-result" id="trivia-result" style="display:none;"></div>
       </div>
     </section>
 
