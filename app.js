@@ -1,5 +1,12 @@
+// 数据层与工具层已拆分至 data.js / utils.js（第二阶段架构优化）
+const D = window.TripWiseData;
+const U = window.TripWiseUtils;
+
 // ========== Tab切换 ==========
 function switchTab(tabName) {
+  // 离开路线页时停止自动导航，避免定时器在后台继续操作地图
+  if (tabName !== 'route' && typeof stopNavigation === 'function') stopNavigation();
+
   document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
 
@@ -18,84 +25,23 @@ let routePolyline = null;
 let navigationInterval = null;
 let currentRouteData = null;
 let currentNavIndex = 0;
+let navSequence = []; // 当前自动导航会依次聚焦的景点下标（跳过无坐标点）
 
+// 带容错的本地持久化：隐私模式或配额满时提示用户而不是抛异常
+// Fisher-Yates 洗牌，保证随机排列分布均匀
 // ========== 全国热门旅游城市 ==========
 // 按区域分组，用于目的地下拉预选框
-const cityRegions = {
-  '🏔️ 华北 · 东北': ['北京', '天津', '哈尔滨', '长春', '沈阳', '大连', '秦皇岛', '呼和浩特'],
-  '🌊 华东': ['上海', '杭州', '南京', '苏州', '无锡', '扬州', '厦门', '黄山', '合肥', '青岛', '济南', '泰安', '舟山', '福州', '南昌'],
-  '🌾 华中': ['武汉', '长沙', '张家界', '恩施', '郑州', '洛阳', '开封'],
-  '🏖️ 华南': ['广州', '深圳', '珠海', '三亚', '海口', '桂林', '南宁', '北海'],
-  '🌶️ 西南': ['成都', '重庆', '昆明', '大理', '丽江', '贵阳', '拉萨'],
-  '🐫 西北': ['西安', '兰州', '敦煌', '张掖', '西宁', '银川', '乌鲁木齐']
-};
-
 // 城市中心坐标
-const cityCoords = {
-  '北京': [39.9042, 116.4074],
-  '天津': [39.3434, 117.3616],
-  '哈尔滨': [45.8038, 126.5340],
-  '长春': [43.8171, 125.3235],
-  '沈阳': [41.8057, 123.4315],
-  '大连': [38.9140, 121.6147],
-  '秦皇岛': [39.9354, 119.6005],
-  '呼和浩特': [40.8414, 111.7519],
-  '上海': [31.2304, 121.4737],
-  '杭州': [30.2741, 120.1551],
-  '南京': [32.0603, 118.7969],
-  '苏州': [31.2989, 120.5853],
-  '无锡': [31.4912, 120.3119],
-  '扬州': [32.3947, 119.4129],
-  '厦门': [24.4798, 118.0894],
-  '黄山': [29.7147, 118.3375],
-  '合肥': [31.8206, 117.2272],
-  '青岛': [36.0671, 120.3826],
-  '济南': [36.6512, 117.1201],
-  '泰安': [36.2000, 117.0880],
-  '舟山': [29.9853, 122.2072],
-  '福州': [26.0745, 119.2965],
-  '南昌': [28.6832, 115.8581],
-  '武汉': [30.5928, 114.3055],
-  '长沙': [28.2280, 112.9388],
-  '张家界': [29.1170, 110.4791],
-  '恩施': [30.2722, 109.4884],
-  '郑州': [34.7466, 113.6253],
-  '洛阳': [34.6189, 112.4540],
-  '开封': [34.7971, 114.3414],
-  '广州': [23.1291, 113.2644],
-  '深圳': [22.5431, 114.0579],
-  '珠海': [22.2710, 113.5762],
-  '三亚': [18.2528, 109.5119],
-  '海口': [20.0440, 110.1999],
-  '桂林': [25.2740, 110.2990],
-  '南宁': [22.8170, 108.3665],
-  '北海': [21.4819, 109.1199],
-  '成都': [30.5728, 104.0668],
-  '重庆': [29.5630, 106.5516],
-  '昆明': [24.8801, 102.8329],
-  '大理': [25.6065, 100.2676],
-  '丽江': [26.8550, 100.2270],
-  '贵阳': [26.6470, 106.6302],
-  '拉萨': [29.6500, 91.1409],
-  '西安': [34.3416, 108.9398],
-  '兰州': [36.0611, 103.8343],
-  '敦煌': [40.1421, 94.6620],
-  '张掖': [38.9258, 100.4497],
-  '西宁': [36.6171, 101.7782],
-  '银川': [38.4872, 106.2309],
-  '乌鲁木齐': [43.8256, 87.6168]
-};
-
 // 初始化目的地下拉框（按区域分组）
 function initCitySelect() {
   const select = document.getElementById('route-dest');
-  Object.keys(cityRegions).forEach(region => {
+  Object.keys(D.cityRegions).forEach(region => {
     const group = document.createElement('optgroup');
     group.label = region;
-    cityRegions[region].forEach(city => {
+    D.cityRegions[region].forEach(city => {
       const opt = document.createElement('option');
       opt.value = city;
-      opt.textContent = routeData[city] ? `${city} ⭐精选` : city;
+      opt.textContent = D.routeData[city] ? `${city} · 精选` : city;
       group.appendChild(opt);
     });
     select.appendChild(group);
@@ -103,126 +49,12 @@ function initCitySelect() {
 }
 
 // ========== 精选路线数据（离线） ==========
-const routeData = {
-  '北京': {
-    culture: [
-      { time: '09:00', title: '故宫博物院', desc: '游览紫禁城，感受600年皇家气派。建议从午门进入，沿中轴线参观三大殿。', icon: '🏯', lat: 39.9163, lng: 116.3972, transport: '步行' },
-      { time: '12:00', title: '四季民福烤鸭店', desc: '品尝正宗北京烤鸭，推荐故宫店，景观位可边吃边看故宫角楼。', icon: '🦆', lat: 39.9242, lng: 116.3983, transport: '步行10分钟' },
-      { time: '14:00', title: '景山公园', desc: '登万春亭俯瞰故宫全景，视野开阔，是拍照的绝佳位置。', icon: '⛰️', lat: 39.9250, lng: 116.3889, transport: '步行15分钟' },
-      { time: '16:00', title: '南锣鼓巷', desc: '漫步老北京胡同，体验文艺小店和特色小吃。', icon: '🏘️', lat: 39.9370, lng: 116.4030, transport: '地铁8号线' }
-    ],
-    food: [
-      { time: '09:00', title: '护国寺小吃', desc: '品尝豆汁、焦圈、艾窝窝等传统北京早餐。', icon: '🥟', lat: 39.9389, lng: 116.3733, transport: '地铁4号线' },
-      { time: '11:00', title: '牛街', desc: '探访清真美食街，品尝白记年糕、洪记小吃。', icon: '🍜', lat: 39.8914, lng: 116.3658, transport: '地铁7号线' },
-      { time: '14:00', title: '大董烤鸭', desc: '高端烤鸭体验，酥不腻烤鸭是招牌。', icon: '🦆', lat: 39.9089, lng: 116.4356, transport: '地铁1号线' },
-      { time: '17:00', title: '簋街', desc: '夜幕降临后的美食街，麻辣小龙虾是必点。', icon: '🦞', lat: 39.9407, lng: 116.4178, transport: '地铁5号线' }
-    ],
-    nature: [
-      { time: '08:00', title: '颐和园', desc: '游览皇家园林，昆明湖泛舟，长廊赏画。', icon: '🏞️', lat: 39.9996, lng: 116.2751, transport: '地铁4号线' },
-      { time: '12:00', title: '圆明园', desc: '参观遗址公园，感受历史沧桑。', icon: '🏛️', lat: 40.0085, lng: 116.3100, transport: '步行20分钟' },
-      { time: '15:00', title: '奥林匹克森林公园', desc: '城市绿肺，骑行或散步放松身心。', icon: '🌳', lat: 40.0236, lng: 116.3889, transport: '地铁8号线' }
-    ],
-    photo: [
-      { time: '06:00', title: '角楼日出', desc: '拍摄故宫角楼倒影，最佳摄影点。', icon: '📸', lat: 39.9242, lng: 116.3889, transport: '步行' },
-      { time: '10:00', title: '红墙黄瓦', desc: '故宫内拍摄经典皇家建筑元素。', icon: '🏯', lat: 39.9163, lng: 116.3972, transport: '步行10分钟' },
-      { time: '15:00', title: '798艺术区', desc: '工业风与艺术的碰撞，拍照圣地。', icon: '🎨', lat: 39.9842, lng: 116.4953, transport: '地铁14号线' },
-      { time: '18:00', title: '什刹海黄昏', desc: '银锭桥上看日落，老北京风情。', icon: '🌅', lat: 39.9407, lng: 116.3875, transport: '地铁6号线' }
-    ]
-  },
-  '上海': {
-    culture: [
-      { time: '09:00', title: '外滩万国建筑群', desc: '欣赏52栋风格迥异的古典复兴大楼。', icon: '🏛️', lat: 31.2400, lng: 121.4900, transport: '地铁2号线' },
-      { time: '11:00', title: '豫园', desc: '明代古典园林，江南园林艺术精华。', icon: '🏯', lat: 31.2272, lng: 121.4925, transport: '步行15分钟' },
-      { time: '14:00', title: '上海博物馆', desc: '青铜器、陶瓷、书画馆藏丰富。', icon: '🏛️', lat: 31.2300, lng: 121.4737, transport: '地铁1号线' },
-      { time: '17:00', title: '田子坊', desc: '文艺小店聚集，石库门建筑风情。', icon: '🎨', lat: 31.2100, lng: 121.4680, transport: '地铁9号线' }
-    ],
-    food: [
-      { time: '08:00', title: '南翔馒头店', desc: '百年老店，小笼包必尝。', icon: '🥟', lat: 31.2272, lng: 121.4925, transport: '地铁10号线' },
-      { time: '11:00', title: '老城隍庙', desc: '品尝上海传统小吃。', icon: '🍜', lat: 31.2267, lng: 121.4894, transport: '步行5分钟' },
-      { time: '14:00', title: '和平饭店', desc: '英式下午茶体验。', icon: '☕', lat: 31.2408, lng: 121.4897, transport: '地铁2号线' },
-      { time: '18:00', title: '新天地', desc: '石库门里的时尚餐厅。', icon: '🍷', lat: 31.2200, lng: 121.4737, transport: '地铁10号线' }
-    ],
-    nature: [
-      { time: '09:00', title: '辰山植物园', desc: '华东最大植物园，四季花开。', icon: '🌸', lat: 31.0833, lng: 121.2167, transport: '地铁9号线' },
-      { time: '13:00', title: '佘山国家森林公园', desc: '上海陆上最高峰，登高望远。', icon: '⛰️', lat: 31.0833, lng: 121.1833, transport: '公交' },
-      { time: '16:00', title: '滴水湖', desc: '人工湖景，海风吹拂。', icon: '🌊', lat: 30.9167, lng: 121.8833, transport: '地铁16号线' }
-    ],
-    photo: [
-      { time: '06:00', title: '外滩晨光', desc: '浦东天际线日出。', icon: '🌅', lat: 31.2400, lng: 121.4900, transport: '地铁2号线' },
-      { time: '10:00', title: '武康路', desc: '法式梧桐下的老洋房。', icon: '🏘️', lat: 31.2133, lng: 121.4367, transport: '地铁10号线' },
-      { time: '15:00', title: '陆家嘴', desc: '摩天大楼群现代都市感。', icon: '🏙️', lat: 31.2397, lng: 121.4997, transport: '地铁2号线' },
-      { time: '19:00', title: '南京路夜景', desc: '霓虹灯下的繁华都市。', icon: '🌃', lat: 31.2347, lng: 121.4767, transport: '步行' }
-    ]
-  },
-  '成都': {
-    culture: [
-      { time: '09:00', title: '武侯祠', desc: '三国文化圣地，红墙竹影。', icon: '🏯', lat: 30.6417, lng: 104.0456, transport: '地铁3号线' },
-      { time: '11:00', title: '锦里古街', desc: '民俗风情一条街。', icon: '🏮', lat: 30.6400, lng: 104.0483, transport: '步行5分钟' },
-      { time: '14:00', title: '杜甫草堂', desc: '诗圣故居，园林清幽。', icon: '🌿', lat: 30.6617, lng: 104.0333, transport: '地铁4号线' },
-      { time: '16:00', title: '宽窄巷子', desc: '老成都生活缩影。', icon: '🏘️', lat: 30.6697, lng: 104.0550, transport: '步行20分钟' }
-    ],
-    food: [
-      { time: '09:00', title: '龙抄手', desc: '正宗成都抄手早餐。', icon: '🥟', lat: 30.6567, lng: 104.0733, transport: '地铁2号线' },
-      { time: '12:00', title: '陈麻婆豆腐', desc: '百年老店，麻辣鲜香。', icon: '🌶️', lat: 30.6617, lng: 104.0533, transport: '步行15分钟' },
-      { time: '15:00', title: '人民公园鹤鸣茶社', desc: '盖碗茶配掏耳朵。', icon: '☕', lat: 30.6583, lng: 104.0617, transport: '步行10分钟' },
-      { time: '18:00', title: '玉林路小酒馆', desc: '赵雷歌中的文艺地标。', icon: '🍺', lat: 30.6333, lng: 104.0667, transport: '地铁3号线' }
-    ],
-    nature: [
-      { time: '08:00', title: '都江堰', desc: '两千年前的水利奇迹。', icon: '🌊', lat: 30.9983, lng: 103.6167, transport: '高铁30分钟' },
-      { time: '13:00', title: '青城山', desc: '道教名山，幽静清雅。', icon: '⛰️', lat: 30.9000, lng: 103.5667, transport: '公交' },
-      { time: '17:00', title: '熊猫基地', desc: '近距离看国宝卖萌。', icon: '🐼', lat: 30.7333, lng: 104.1500, transport: '景区直通车' }
-    ],
-    photo: [
-      { time: '09:00', title: 'IFS爬墙熊猫', desc: '成都网红打卡点。', icon: '🐼', lat: 30.6567, lng: 104.0817, transport: '地铁2号线' },
-      { time: '11:00', title: '太古里', desc: '时尚与古建融合。', icon: '🏙️', lat: 30.6550, lng: 104.0833, transport: '步行5分钟' },
-      { time: '15:00', title: '东郊记忆', desc: '工业风文创园区。', icon: '🎨', lat: 30.6533, lng: 104.1233, transport: '地铁4号线' },
-      { time: '18:00', title: '九眼桥酒吧街', desc: '夜景迷人。', icon: '🌃', lat: 30.6467, lng: 104.0883, transport: '步行15分钟' }
-    ]
-  },
-  '贵阳': {
-    culture: [
-      { time: '09:00', title: '甲秀楼', desc: '贵阳地标，南明河上的古楼，夜景尤为壮观。', icon: '🏯', lat: 26.5681, lng: 106.7208, transport: '公交' },
-      { time: '11:00', title: '青岩古镇', desc: '600年历史的明清古镇，石板路、古城墙，贵州四大古镇之一。', icon: '🏘️', lat: 26.3367, lng: 106.6889, transport: '景区直通车' },
-      { time: '14:00', title: '黔灵山公园', desc: '城市中的天然氧吧，猕猴成群，弘福寺香火旺盛。', icon: '🌿', lat: 26.6000, lng: 106.7000, transport: '地铁1号线' },
-      { time: '16:00', title: '贵州省博物馆', desc: '了解贵州多元民族文化，民族文物馆藏丰富。', icon: '🏛️', lat: 26.6167, lng: 106.6500, transport: '地铁1号线' }
-    ],
-    food: [
-      { time: '09:00', title: '肠旺面', desc: '贵阳特色早餐，肥肠+血旺+脆哨，麻辣鲜香。', icon: '🍜', lat: 26.6500, lng: 106.6300, transport: '步行' },
-      { time: '12:00', title: '丝娃娃', desc: '贵阳特色小吃，薄饼卷各种蔬菜丝，蘸酸辣汁。', icon: '🥗', lat: 26.6450, lng: 106.6350, transport: '步行10分钟' },
-      { time: '15:00', title: '花溪牛肉粉', desc: '花溪区老字号，汤鲜粉滑，牛肉大片。', icon: '🍜', lat: 26.4333, lng: 106.6833, transport: '公交' },
-      { time: '18:00', title: '合群路夜市', desc: '贵阳最热闹的夜市，烧烤、烙锅、恋爱豆腐果。', icon: '🍢', lat: 26.6400, lng: 106.6250, transport: '步行' }
-    ],
-    nature: [
-      { time: '08:00', title: '黄果树瀑布', desc: '亚洲最大瀑布，水势磅礴，西游记取景地。', icon: '🌊', lat: 25.9889, lng: 105.6694, transport: '景区直通车2小时' },
-      { time: '13:00', title: '天星桥景区', desc: '喀斯特地貌精华，水上石林、银链坠潭瀑布。', icon: '⛰️', lat: 25.9667, lng: 105.6500, transport: '步行' },
-      { time: '16:00', title: '陡坡塘瀑布', desc: '黄果树上游，西游记片尾曲取景地。', icon: '🌊', lat: 25.9833, lng: 105.6833, transport: '步行15分钟' }
-    ],
-    photo: [
-      { time: '06:30', title: '甲秀楼晨景', desc: '清晨薄雾中的甲秀楼，倒影在南明河中。', icon: '📸', lat: 26.5681, lng: 106.7208, transport: '步行' },
-      { time: '10:00', title: '花溪十里河滩', desc: '湿地花海，四季不同景色，摄影天堂。', icon: '🌸', lat: 26.4167, lng: 106.6833, transport: '公交' },
-      { time: '15:00', title: '天河潭', desc: '溶洞+瀑布+湖泊，贵州缩影，出片率极高。', icon: '📷', lat: 26.4500, lng: 106.5500, transport: '景区直通车' },
-      { time: '19:00', title: '花果园白宫夜景', desc: '贵阳版"白宫"，夜晚灯光璀璨。', icon: '🌃', lat: 26.5833, lng: 106.6833, transport: '地铁' }
-    ]
-  }
-};
-
 // ========== AI 配置（来自 config.js，程序后台配置模式） ==========
-const AI_PROVIDERS = {
-  siliconflow: {
-    name: '硅基流动',
-    url: 'https://api.siliconflow.cn/v1/chat/completions'
-  },
-  zhipu: {
-    name: '智谱AI',
-    url: 'https://open.bigmodel.cn/api/paas/v4/chat/completions'
-  }
-};
-
 // 读取 config.js 中的全局配置；未配置时返回 null
 function getAiConfig() {
   const conf = window.TRIPWISE_CONFIG;
   if (!conf || !conf.apiKey || !conf.provider) return null;
-  const provider = AI_PROVIDERS[conf.provider];
+  const provider = D.AI_PROVIDERS[conf.provider];
   if (!provider) return null;
   return {
     provider: conf.provider,
@@ -240,16 +72,17 @@ function updateAiStatus() {
   const statusText = document.getElementById('ai-status-text');
   const bar = document.getElementById('ai-status-bar');
   if (cfg) {
-    statusText.textContent = `✅ AI 已就绪 · ${cfg.name}（${cfg.model}）`;
+    statusText.innerHTML = `${U.iconSvg('check-circle')}<span>AI 已就绪 · ${U.escapeHtml(cfg.name)}（${U.escapeHtml(cfg.model)}）</span>`;
     bar.classList.add('ready');
   } else {
-    statusText.textContent = '⚠️ AI 未启用：请在项目目录 config.js 中填写 apiKey（打开该文件按注释操作即可，一次配置长期有效）';
+    statusText.innerHTML = `${U.iconSvg('alert')}<span>AI 未启用：请在项目目录 config.js 中填写 apiKey（打开该文件按注释操作即可，一次配置长期有效）</span>`;
     bar.classList.remove('ready');
   }
 }
 
 // 调用大模型（OpenAI 兼容格式，非流式）
-async function callAI(messages) {
+// overrides.maxTokens 可用于多日路线等需要更长回复的场景
+async function callAI(messages, overrides = {}) {
   const cfg = getAiConfig();
   if (!cfg) throw new Error('NO_CONFIG');
 
@@ -263,7 +96,7 @@ async function callAI(messages) {
       model: cfg.model,
       messages,
       temperature: cfg.temperature,
-      max_tokens: cfg.maxTokens
+      max_tokens: overrides.maxTokens || cfg.maxTokens
     })
   });
 
@@ -290,56 +123,80 @@ async function generateRoute() {
   const type = document.getElementById('route-type').value;
 
   if (!dest) {
-    alert('请先选择目的地城市');
+    window.showToast('请先选择目的地城市', 'alert');
     return;
   }
 
-  // 精选城市走本地离线路线
-  if (routeData[dest]) {
-    const cityData = routeData[dest];
-    const routes = cityData[type] || cityData.culture;
+  // 精选城市走本地离线路线：单日按主题取，多日取 sevenDay 前 N 天
+  if (D.routeData[dest]) {
+    const cityData = D.routeData[dest];
+    const daysNum = parseInt(days, 10) || 1;
+    let routes;
+    if (daysNum > 1 && cityData.sevenDay) {
+      routes = cityData.sevenDay.slice(0, daysNum)
+        .flatMap((dayRoutes, dayIdx) =>
+          dayRoutes.map(route => ({ ...route, day: dayIdx + 1 }))
+        );
+    } else {
+      routes = (cityData[type] || cityData.culture).map(route => ({ ...route, day: 1 }));
+    }
     showRouteResult(dest, days, type, routes);
     return;
   }
 
   // 其余城市由 AI 实时生成
   if (!getAiConfig()) {
-    alert(`"${dest}"的路线需要 AI 实时生成，请先配置免费大模型 API Key`);
+    window.showToast(`"${dest}"的路线需要 AI 实时生成，请先配置免费大模型 API Key`, 'alert');
     openAiSettings();
     return;
   }
 
   const btn = document.getElementById('route-gen-btn');
   btn.disabled = true;
-  btn.textContent = '🤖 AI生成中...';
+  btn.textContent = '正在生成…';
+
+  // 开始一次全新生成：停掉可能仍在运行的自动导航，并移除上一个城市的旧地图
+  if (navigationInterval) {
+    clearInterval(navigationInterval);
+    navigationInterval = null;
+  }
+  destroyRouteMap();
 
   // 先展示结果区和加载动画
   document.getElementById('route-result').style.display = 'block';
-  document.getElementById('map-title').textContent = `🗺️ ${dest} · ${getDaysText(days)}${getRouteTypeText(type)}`;
+  document.getElementById('map-title').innerHTML = `${U.iconSvg('map')}<span>${U.escapeHtml(dest)} · ${getDaysText(days)}${getRouteTypeText(type)}</span>`;
   document.getElementById('route-summary').innerHTML = `
-    <h3>📊 路线概览</h3>
-    <div class="ai-loading"><div class="loading-dots"><span></span><span></span><span></span></div><p>AI 正在为你规划${dest}路线，请稍候...</p></div>`;
+    <h3>路线概览</h3>
+    <div class="ai-loading"><div class="loading-dots"><span></span><span></span><span></span></div><p>AI 正在为你规划${U.escapeHtml(dest)}路线，请稍候…</p></div>`;
   document.getElementById('route-timeline').innerHTML = '';
   document.getElementById('route-tips').innerHTML = '';
   document.getElementById('map-legend').innerHTML = '';
   document.getElementById('nav-start-btn').style.display = 'none';
   document.getElementById('nav-stop-btn').style.display = 'none';
-  document.getElementById('route-result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  document.getElementById('route-result').scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
 
-  const center = cityCoords[dest] || [35.0, 105.0];
-  const prompt = `你是专业旅行路线规划师。请为用户规划"${dest}"的${getRouteTypeText(type)}（${getDaysText(days)}，以下按第一天安排）。
+  const center = D.cityCoords[dest] || [35.0, 105.0];
+  const daysNum = parseInt(days, 10) || 1;
+  const dayRangeText = daysNum === 1
+    ? '只安排第1天，'
+    : `必须包含完整的第1天到第${daysNum}天，`;
+  const prompt = `你是专业旅行路线规划师。请为用户规划"${dest}"的${getRouteTypeText(type)}（${getDaysText(days)}，共${daysNum}天）。
 只返回JSON数组，不要任何其他文字、解释或markdown代码块符号。数组每个元素格式：
-{"time":"HH:MM","title":"地点名","desc":"50字以内介绍","icon":"一个emoji","lat":纬度数字,"lng":经度数字,"transport":"与上一站之间的交通方式"}
+{"day":第几天数字,"time":"HH:MM","title":"地点名","desc":"50字以内介绍","category":"landmark|food|nature|photo|shopping","lat":纬度数字,"lng":经度数字,"transport":"与上一站之间的交通方式"}
 要求：
-1. 安排4-6个地点，时间从早到晚，顺序合理、路线顺路；
-2. lat/lng必须是${dest}真实存在的地点坐标（城市中心约在纬度${center[0]}、经度${center[1]}附近）；
-3. 地点必须是${dest}真实著名的景点或餐厅。`;
+1. ${dayRangeText}每天安排4-6个地点；同一天内时间从早到晚、顺序合理、路线顺路；不同天的住宿与动线衔接合理；
+2. 数组按天排序：先排完第1天全部地点，再排第2天，以此类推；
+3. lat/lng必须是${dest}真实存在的地点坐标（城市中心约在纬度${center[0]}、经度${center[1]}附近），且必须使用GCJ-02火星坐标系（即高德地图/腾讯地图拾取到的坐标），不要使用WGS-84/GPS原始坐标；
+4. 地点必须是${dest}真实著名的景点或餐厅，不要虚构。`;
 
   try {
+    // 天数越多需要的回复越长，按天放大 max_tokens（上限 6000）
+    const routeMaxTokens = Math.min(6000, Math.max(getAiConfig().maxTokens || 1500, 1000 * daysNum + 500));
     const content = await callAI([
       { role: 'system', content: '你是专业旅行路线规划师，严格按用户要求的JSON格式输出，绝不输出多余文字。' },
       { role: 'user', content: prompt }
-    ]);
+    ], { maxTokens: routeMaxTokens });
     const routes = parseRouteJson(content, center);
     if (routes && routes.length) {
       showRouteResult(dest, days, type, routes);
@@ -350,12 +207,12 @@ async function generateRoute() {
     document.getElementById('route-summary').innerHTML = '';
     document.getElementById('route-timeline').innerHTML = `
       <div class="timeline-item ai-error-item">
-        <h4>😢 生成失败</h4>
-        <p>${describeAiError(err)}</p>
+        <h4>${U.iconSvg('alert')}生成失败</h4>
+        <p>${U.escapeHtml(describeAiError(err))}</p>
       </div>`;
   } finally {
     btn.disabled = false;
-    btn.textContent = '✨ AI生成路线';
+    btn.textContent = '生成路线';
   }
 }
 
@@ -370,16 +227,28 @@ function parseRouteJson(text, center) {
     return arr.map((item, idx) => {
       let lat = parseFloat(item.lat);
       let lng = parseFloat(item.lng);
-      // 坐标明显偏离城市中心时，回退到市中心附近
-      if (isNaN(lat) || isNaN(lng) || Math.abs(lat - center[0]) > 2 || Math.abs(lng - center[1]) > 2) {
+      // AI 偶尔会把经纬度写反：经度落在纬度区间、纬度落在经度区间时交换回来
+      if (!isNaN(lat) && !isNaN(lng) && Math.abs(lat) > 90 && Math.abs(lng) <= 90) {
+        const swapped = lat;
+        lat = lng;
+        lng = swapped;
+      }
+      // 校验是否落在合理范围（中国境内粗边界），并距城市中心不超过 2 度；
+      // 不满足则回退到市中心附近的规则点，避免把热点甩到国外或海上
+      const inChina = lng > 73.66 && lng < 135.05 && lat > 3.86 && lat < 53.55;
+      if (isNaN(lat) || isNaN(lng) || !inChina || Math.abs(lat - center[0]) > 2 || Math.abs(lng - center[1]) > 2) {
         lat = center[0] + (idx - 2) * 0.01;
         lng = center[1] + (idx % 2 === 0 ? 1 : -1) * idx * 0.008;
       }
+      // 统一保留 4 位小数（约 11 米精度），过滤 AI 编造的过量小数位
+      lat = Math.round(lat * 1e4) / 1e4;
+      lng = Math.round(lng * 1e4) / 1e4;
       return {
+        day: Math.max(1, parseInt(item.day, 10) || 1),
         time: String(item.time || ''),
         title: String(item.title || `地点${idx + 1}`),
         desc: String(item.desc || ''),
-        icon: String(item.icon || '📍'),
+        icon: String(item.category || item.icon || 'pin'),
         lat, lng,
         transport: String(item.transport || '')
       };
@@ -392,17 +261,17 @@ function parseRouteJson(text, center) {
 // AI 返回无法解析为结构化路线时，降级为纯文本展示
 function showRouteTextFallback(dest, days, type, text) {
   document.getElementById('route-summary').innerHTML = `
-    <h3>📊 路线概览</h3>
+    <h3>路线概览</h3>
     <div class="summary-grid">
-      <div class="summary-item"><span class="summary-value">${dest}</span><span class="summary-label">目的地</span></div>
+      <div class="summary-item"><span class="summary-value">${U.escapeHtml(dest)}</span><span class="summary-label">目的地</span></div>
       <div class="summary-item"><span class="summary-value">${getDaysText(days)}</span><span class="summary-label">行程天数</span></div>
       <div class="summary-item"><span class="summary-value">${getRouteTypeText(type)}</span><span class="summary-label">主题</span></div>
-      <div class="summary-item"><span class="summary-value">AI</span><span class="summary-label">智能规划</span></div>
+      <div class="summary-item"><span class="summary-value">智能</span><span class="summary-label">路线来源</span></div>
     </div>`;
   document.getElementById('route-timeline').innerHTML = `
     <div class="timeline-item ai-text-item">
-      <h4>🤖 AI 路线建议</h4>
-      <p class="ai-route-text">${escapeHtml(text)}</p>
+      <h4>${U.iconSvg('bot')}AI 路线建议</h4>
+      <p class="ai-route-text">${U.escapeHtml(text)}</p>
     </div>`;
   document.getElementById('route-tips').innerHTML = '';
   document.getElementById('map-legend').innerHTML = '';
@@ -411,32 +280,46 @@ function showRouteTextFallback(dest, days, type, text) {
 
 // 渲染完整路线结果（地图 + 摘要 + 时间线 + 贴士）
 function showRouteResult(dest, days, type, routes) {
+  // 重新渲染前先停掉旧路线上的自动导航，防止旧定时器操作新地图
+  if (navigationInterval) {
+    clearInterval(navigationInterval);
+    navigationInterval = null;
+  }
+  navSequence = [];
+
   currentRouteData = { dest, days, type, routes };
 
   document.getElementById('route-result').style.display = 'block';
-  document.getElementById('map-title').textContent = `🗺️ ${dest} · ${getDaysText(days)}${getRouteTypeText(type)}`;
+  document.getElementById('map-title').innerHTML = `${U.iconSvg('map')}<span>${U.escapeHtml(dest)} · ${getDaysText(days)}${getRouteTypeText(type)}</span>`;
   document.getElementById('nav-start-btn').style.display = 'inline-block';
   document.getElementById('nav-stop-btn').style.display = 'none';
 
   renderRouteMap(dest, routes);
   renderRouteSummary(dest, routes);
 
-  const timeline = document.getElementById('route-timeline');
-  timeline.innerHTML = routes.map((route, idx) => `
-    <div class="timeline-item" onclick="focusOnMarker(${idx})">
-      <span class="time-badge">${route.time}</span>
-      <h4>${route.icon} ${escapeHtml(route.title)}</h4>
-      <p>${escapeHtml(route.desc)}</p>
-      ${route.transport ? `<div style="margin-top:0.4rem;font-size:0.8rem;color:var(--primary);">🚗 ${escapeHtml(route.transport)}</div>` : ''}
-      <button class="timeline-nav-btn" onclick="event.stopPropagation();navigateTo(${idx})">🧭 导航到这里</button>
-    </div>
-  `).join('');
+  // 按天分组渲染时间线；.timeline-item 保持与 routes 下标一一对应，供地图聚焦使用
+  const dayNumbers = [...new Set(routes.map(r => r.day || 1))].sort((a, b) => a - b);
+  const timelineHtml = dayNumbers.map(day => {
+    const dayRoutes = routes
+      .map((route, idx) => ({ route, idx }))
+      .filter(item => (item.route.day || 1) === day);
+    const heading = dayNumbers.length > 1
+      ? `<h3 class="route-day-heading">第 ${day} 天</h3>`
+      : '';
+    const items = dayRoutes.map(({ route, idx }) => `
+    <div class="timeline-item" data-route-idx="${idx}">
+      <span class="time-badge">${U.escapeHtml(route.time)}</span>
+      <h4><button class="timeline-place-btn" type="button" onclick="focusOnMarker(${idx})">${U.iconFrom(route.icon)}<span>${U.escapeHtml(route.title)}</span></button></h4>
+      <p>${U.escapeHtml(route.desc)}</p>
+      ${route.transport ? `<div class="route-transport">${U.iconSvg('train')}<span>${U.escapeHtml(route.transport)}</span></div>` : ''}
+      <button class="timeline-nav-btn" onclick="event.stopPropagation();navigateTo(${idx})">${U.iconSvg('navigation')}<span>导航到这里</span></button>
+    </div>`).join('');
+    return heading + items;
+  }).join('');
+
+  document.getElementById('route-timeline').innerHTML = timelineHtml;
 
   renderRouteTips(dest, routes);
-}
-
-function escapeHtml(str) {
-  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 function getDaysText(days) {
@@ -449,16 +332,30 @@ function getRouteTypeText(type) {
 }
 
 // ========== 地图渲染 ==========
-function renderRouteMap(dest, routes) {
-  // 清理旧地图
+// 销毁当前地图实例（AI 重新生成或切换路线时调用，避免旧城市地图残留）
+function destroyRouteMap() {
   if (routeMap) {
-    routeMap.remove();
+    try { routeMap.remove(); } catch (_) { /* 容器已移除时忽略 */ }
     routeMap = null;
   }
   routeMarkers = [];
   routePolyline = null;
+}
 
-  const center = cityCoords[dest] || [39.9042, 116.4074];
+async function renderRouteMap(dest, routes) {
+  // 清理旧地图
+  destroyRouteMap();
+  // 等待 Leaflet 异步加载完成；CDN 失败时提示并保留文字时间线
+  try {
+    await (window.leafletReady || Promise.resolve());
+  } catch (_) {
+    window.showToast('地图组件加载失败，已为你显示文字路线', 'alert');
+    return;
+  }
+
+  // 底图是高德瓦片（GCJ-02），data.js 离线数据与 AI 返回坐标统一约定为 GCJ-02，
+  // 与底图同一坐标系，直接上图，不做转换
+  const center = D.cityCoords[dest] || [39.9042, 116.4074];
 
   routeMap = L.map('route-map').setView(center, 13);
 
@@ -470,15 +367,22 @@ function renderRouteMap(dest, routes) {
   }).addTo(routeMap);
 
   const coordinates = [];
-  const colors = ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#8b5cf6', '#ef4444'];
+  // 不同天用不同颜色区分
+  const colors = ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#8b5cf6', '#ef4444', '#0ea5e9'];
+
+  // 关键：routeMarkers 与 routes 下标严格对齐，无坐标的点留 null，
+  // 保证时间线按钮的 idx 不会错位
+  routeMarkers = new Array(routes.length).fill(null);
 
   routes.forEach((route, idx) => {
-    if (route.lat && route.lng) {
+    if (route.lat != null && route.lng != null && !Number.isNaN(route.lat) && !Number.isNaN(route.lng)) {
+      // 坐标即 GCJ-02，与高德瓦片直接对齐
       const latlng = [route.lat, route.lng];
       coordinates.push(latlng);
+      const color = colors[((route.day || 1) - 1) % colors.length];
 
       const icon = L.divIcon({
-        html: `<div style="background:${colors[idx % colors.length]};color:white;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 2px 8px rgba(0,0,0,0.3);border:2px solid white;">${idx + 1}</div>`,
+        html: `<div style="background:${color};color:white;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 2px 8px rgba(0,0,0,0.3);border:2px solid white;">${idx + 1}</div>`,
         className: 'custom-marker',
         iconSize: [32, 32],
         iconAnchor: [16, 16]
@@ -487,42 +391,55 @@ function renderRouteMap(dest, routes) {
       const marker = L.marker(latlng, { icon }).addTo(routeMap);
       marker.bindPopup(`
         <div style="text-align:center;padding:8px;">
-          <div style="font-size:24px;margin-bottom:4px;">${route.icon}</div>
-          <h3 style="margin:0 0 4px 0;font-size:14px;">${escapeHtml(route.title)}</h3>
-          <p style="margin:0;font-size:12px;color:#666;">${route.time}</p>
-          ${route.transport ? `<p style="margin:4px 0 0 0;font-size:11px;color:#6366f1;">🚗 ${escapeHtml(route.transport)}</p>` : ''}
+          <div class="map-popup-icon">${U.iconFrom(route.icon)}</div>
+          <h3 style="margin:0 0 4px 0;font-size:14px;">${U.escapeHtml(route.title)}</h3>
+          <p style="margin:0;font-size:12px;color:#666;">${U.escapeHtml(route.time)}</p>
+          ${route.transport ? `<p class="map-popup-transport">${U.iconSvg('train')}<span>${U.escapeHtml(route.transport)}</span></p>` : ''}
         </div>
       `);
 
-      routeMarkers.push(marker);
+      routeMarkers[idx] = marker;
     }
   });
 
-  if (coordinates.length > 1) {
-    routePolyline = L.polyline(coordinates, {
-      color: '#6366f1',
-      weight: 4,
-      opacity: 0.7,
-      dashArray: '10, 10'
-    }).addTo(routeMap);
-  }
+  // 按天分别绘制连线，避免跨天的点被强行连成一条线
+  const dayNumbers = [...new Set(routes.map(r => r.day || 1))].sort((a, b) => a - b);
+  dayNumbers.forEach(day => {
+    const dayCoords = routes
+      .filter(r => (r.day || 1) === day && r.lat != null && r.lng != null)
+      .map(r => [r.lat, r.lng]);
+    if (dayCoords.length > 1) {
+      L.polyline(dayCoords, {
+        color: colors[(day - 1) % colors.length],
+        weight: 4,
+        opacity: 0.7,
+        dashArray: '10, 10'
+      }).addTo(routeMap);
+    }
+  });
+  // 多条按天连线随地图实例统一销毁，无需单独持有引用
+  routePolyline = null;
 
   if (coordinates.length > 0) {
     const bounds = L.latLngBounds(coordinates);
     routeMap.fitBounds(bounds, { padding: [50, 50] });
   }
 
-  renderMapLegend(routes, colors);
+  renderMapLegend(routes, colors, dayNumbers);
 }
 
-function renderMapLegend(routes, colors) {
+function renderMapLegend(routes, colors, dayNumbers = [1]) {
   const legend = document.getElementById('map-legend');
-  legend.innerHTML = routes.map((route, idx) => `
+  const multiDay = dayNumbers.length > 1;
+  legend.innerHTML = routes.map((route, idx) => {
+    const color = colors[((route.day || 1) - 1) % colors.length];
+    const dayPrefix = multiDay ? `D${route.day || 1} · ` : '';
+    return `
     <div class="legend-item">
-      <div class="legend-dot" style="background:${colors[idx % colors.length]}"></div>
-      <span>${idx + 1}. ${escapeHtml(route.title)}</span>
-    </div>
-  `).join('');
+      <div class="legend-dot" style="background:${color}"></div>
+      <span>${dayPrefix}${idx + 1}. ${U.escapeHtml(route.title)}</span>
+    </div>`;
+  }).join('');
 }
 
 function renderRouteSummary(dest, routes) {
@@ -532,23 +449,23 @@ function renderRouteSummary(dest, routes) {
   const lastStop = routes[routes.length - 1]?.time || '18:00';
 
   summary.innerHTML = `
-    <h3>📊 路线概览</h3>
+    <h3>路线概览</h3>
     <div class="summary-grid">
       <div class="summary-item">
         <span class="summary-value">${totalStops}</span>
         <span class="summary-label">景点数量</span>
       </div>
       <div class="summary-item">
-        <span class="summary-value">${firstStop}-${lastStop}</span>
+        <span class="summary-value">${U.escapeHtml(firstStop)}-${U.escapeHtml(lastStop)}</span>
         <span class="summary-label">时间跨度</span>
       </div>
       <div class="summary-item">
-        <span class="summary-value">${dest}</span>
+        <span class="summary-value">${U.escapeHtml(dest)}</span>
         <span class="summary-label">目的地</span>
       </div>
       <div class="summary-item">
-        <span class="summary-value">AI</span>
-        <span class="summary-label">智能规划</span>
+        <span class="summary-value">${D.routeData[dest] ? '精选' : '智能'}</span>
+        <span class="summary-label">路线来源</span>
       </div>
     </div>
   `;
@@ -560,12 +477,12 @@ function renderRouteTips(dest, routes) {
   const tips = getRouteTips(dest, routes);
 
   tipsEl.innerHTML = `
-    <h4>💡 出行贴士</h4>
+    <h4>${U.iconSvg('idea')}出行贴士</h4>
     <div class="tips-grid">
       ${tips.map(tip => `
         <div class="tip-item">
-          <span class="tip-icon">${tip.icon}</span>
-          <span>${tip.text}</span>
+          <span class="tip-icon">${U.iconFrom(tip.icon)}</span>
+          <span>${U.escapeHtml(tip.text)}</span>
         </div>
       `).join('')}
     </div>
@@ -574,32 +491,32 @@ function renderRouteTips(dest, routes) {
 
 function getRouteTips(dest, routes) {
   const tips = [
-    { icon: '🎫', text: '建议提前预约门票' },
-    { icon: '🚇', text: '推荐地铁出行，避开拥堵' },
-    { icon: '📱', text: '下载离线地图备用' },
-    { icon: '💧', text: '随身携带饮用水' },
-    { icon: '🔋', text: '带充电宝保持电量' },
-    { icon: '🧴', text: '注意防晒/防雨' },
+    { icon: 'ticket', text: '建议提前预约门票' },
+    { icon: 'train', text: '推荐地铁出行，避开拥堵' },
+    { icon: 'phone', text: '下载离线地图备用' },
+    { icon: 'droplet', text: '随身携带饮用水' },
+    { icon: 'battery', text: '带充电宝保持电量' },
+    { icon: 'umbrella', text: '注意防晒/防雨' },
   ];
 
   if (dest === '北京') {
-    tips.push({ icon: '🏛️', text: '故宫周一闭馆' });
-    tips.push({ icon: '🌬️', text: '春秋季风大注意保暖' });
+    tips.push({ icon: 'landmark', text: '故宫周一闭馆' });
+    tips.push({ icon: 'wind', text: '春秋季风大注意保暖' });
   } else if (dest === '上海') {
-    tips.push({ icon: '🌧️', text: '梅雨季备好雨具' });
-    tips.push({ icon: '🏙️', text: '外滩夜景建议19点后' });
+    tips.push({ icon: 'rain', text: '梅雨季备好雨具' });
+    tips.push({ icon: 'city', text: '外滩夜景建议19点后' });
   } else if (dest === '成都') {
-    tips.push({ icon: '🌶️', text: '吃辣量力而行' });
-    tips.push({ icon: '🐼', text: '熊猫基地建议早去' });
+    tips.push({ icon: 'food', text: '吃辣量力而行' });
+    tips.push({ icon: 'place', text: '熊猫基地建议早去' });
   } else if (dest === '贵阳') {
-    tips.push({ icon: '🌧️', text: '天无三日晴，常备雨具' });
-    tips.push({ icon: '🌶️', text: '酸汤鱼和辣子鸡必尝' });
+    tips.push({ icon: 'rain', text: '天无三日晴，常备雨具' });
+    tips.push({ icon: 'food', text: '酸汤鱼和辣子鸡必尝' });
   } else if (dest === '拉萨') {
-    tips.push({ icon: '🫁', text: '注意高原反应，缓慢行动' });
-    tips.push({ icon: '☀️', text: '紫外线强，做好防晒' });
+    tips.push({ icon: 'wind', text: '注意高原反应，缓慢行动' });
+    tips.push({ icon: 'sun', text: '紫外线强，做好防晒' });
   } else if (dest === '三亚' || dest === '厦门' || dest === '北海') {
-    tips.push({ icon: '🏖️', text: '海边游玩注意潮汐时间' });
-    tips.push({ icon: '🦐', text: '海鲜搭配肠胃药备用' });
+    tips.push({ icon: 'umbrella', text: '海边游玩注意潮汐时间' });
+    tips.push({ icon: 'food', text: '海鲜搭配肠胃药备用' });
   }
 
   return tips;
@@ -608,42 +525,56 @@ function getRouteTips(dest, routes) {
 // ========== 地图交互 ==========
 function focusOnMarker(idx) {
   if (routeMarkers[idx] && routeMap) {
+    // marker 坐标即 GCJ-02，与底图对齐
     routeMap.setView(routeMarkers[idx].getLatLng(), 15);
     routeMarkers[idx].openPopup();
-
-    document.querySelectorAll('.timeline-item').forEach((item, i) => {
-      item.classList.toggle('active', i === idx);
-    });
   }
+  // 按 data-route-idx 定位，而不是依赖 .timeline-item 的 DOM 顺序：
+  // 多日路线的时间线里混有"第 N 天"标题和离线提示，用下标遍历会错位到别的景点
+  document.querySelectorAll('.timeline-item').forEach(item => {
+    item.classList.toggle('active', Number(item.dataset.routeIdx) === idx);
+  });
 }
 
 function navigateTo(idx) {
   if (currentRouteData && currentRouteData.routes[idx]) {
     const route = currentRouteData.routes[idx];
-    if (route.lat && route.lng) {
-      const url = `https://uri.amap.com/marker?position=${route.lng},${route.lat}&name=${encodeURIComponent(route.title)}`;
+    // uri.amap.com 的 position 参数默认按 GCJ-02（高德坐标）解读，与数据坐标系一致，直接使用
+    const lat = route.lat;
+    const lng = route.lng;
+    if (lat != null && lng != null && !Number.isNaN(Number(lat)) && !Number.isNaN(Number(lng))) {
+      const url = `https://uri.amap.com/marker?position=${lng},${lat}&name=${encodeURIComponent(route.title)}`;
       window.open(url, '_blank');
     }
   }
 }
 
 function startNavigation() {
-  if (!currentRouteData || !routeMarkers.length) return;
+  if (!currentRouteData) return;
+
+  // 收集所有真正有坐标、可聚焦的景点下标（跳过 null 槽位）
+  navSequence = currentRouteData.routes
+    .map((route, idx) => (route.lat != null && route.lng != null ? idx : -1))
+    .filter(idx => idx >= 0 && routeMarkers[idx]);
+  if (!navSequence.length) return;
+
+  // 重复点击"开始导航"时先清掉旧定时器，避免叠加多个定时器
+  if (navigationInterval) clearInterval(navigationInterval);
 
   currentNavIndex = 0;
   document.getElementById('nav-start-btn').style.display = 'none';
   document.getElementById('nav-stop-btn').style.display = 'inline-block';
 
+  // 立即聚焦第一个点；之后每 3 秒推进一个，避免首点被聚焦两次
+  focusOnMarker(navSequence[0]);
   navigationInterval = setInterval(() => {
-    if (currentNavIndex < routeMarkers.length) {
-      focusOnMarker(currentNavIndex);
-      currentNavIndex++;
+    currentNavIndex++;
+    if (currentNavIndex < navSequence.length) {
+      focusOnMarker(navSequence[currentNavIndex]);
     } else {
       stopNavigation();
     }
   }, 3000);
-
-  focusOnMarker(0);
 }
 
 function stopNavigation() {
@@ -651,8 +582,12 @@ function stopNavigation() {
     clearInterval(navigationInterval);
     navigationInterval = null;
   }
-  document.getElementById('nav-start-btn').style.display = 'inline-block';
-  document.getElementById('nav-stop-btn').style.display = 'none';
+  navSequence = [];
+  const startBtn = document.getElementById('nav-start-btn');
+  const stopBtn = document.getElementById('nav-stop-btn');
+  // 元素在结果区重建期间可能正好缺失，做存在性判断
+  if (startBtn) startBtn.style.display = 'inline-block';
+  if (stopBtn) stopBtn.style.display = 'none';
 
   document.querySelectorAll('.timeline-item').forEach(item => {
     item.classList.remove('active');
@@ -672,11 +607,12 @@ function getChatSystemPrompt() {
     context = `\n用户当前在路线规划里选择的城市是「${dest}」，计划${getDaysText(days)}，偏好${getRouteTypeText(type)}。回答时优先围绕这个城市。`;
   }
   return `你是"TripWise AI旅行顾问"，一位专业、热情、贴心的中文旅行规划助手。请根据用户的实际情况（预算、同行人、天数、偏好、季节等）给出实用建议，包括行程安排、景点推荐、美食推荐、交通方式、住宿建议、预算评估、注意事项等。
-要求：回答简洁清晰，控制在400字以内；多用短句和分点（用"1. 2. 3."或"- "）；适当使用emoji让回答更生动；如果用户信息不足，先给出通用建议再追问关键信息。${context}`;
+要求：回答简洁清晰，控制在400字以内；多用短句和分点（用"1. 2. 3."或"- "）；不要使用emoji或颜文字；如果用户信息不足，先给出通用建议再追问关键信息。${context}`;
 }
 
-function renderMarkdown(text) {
-  let html = escapeHtml(text);
+function renderMarkdown(text, stripEmoji = false) {
+  const cleanText = stripEmoji ? String(text).replace(/\p{Extended_Pictographic}\uFE0F?/gu, '').replace(/\uFE0F/g, '') : text;
+  let html = U.escapeHtml(cleanText);
   html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   html = html.replace(/^[-•]\s*/gm, '• ');
   html = html.replace(/\n/g, '<br>');
@@ -688,8 +624,8 @@ function appendChatBubble(role, content) {
   const bubble = document.createElement('div');
   bubble.className = `chat-bubble ${role === 'user' ? 'chat-user' : 'chat-ai'}`;
   bubble.innerHTML = `
-    <div class="chat-avatar">${role === 'user' ? '🙋' : '🤖'}</div>
-    <div class="chat-text">${renderMarkdown(content)}</div>`;
+    <div class="chat-avatar">${U.iconSvg(role === 'user' ? 'user' : 'bot')}</div>
+    <div class="chat-text">${renderMarkdown(content, role !== 'user')}</div>`;
   box.appendChild(bubble);
   box.scrollTop = box.scrollHeight;
   return bubble;
@@ -701,7 +637,7 @@ function appendLoadingBubble() {
   bubble.className = 'chat-bubble chat-ai';
   bubble.id = 'chat-loading';
   bubble.innerHTML = `
-    <div class="chat-avatar">🤖</div>
+    <div class="chat-avatar">${U.iconSvg('bot')}</div>
     <div class="chat-text"><div class="loading-dots"><span></span><span></span><span></span></div></div>`;
   box.appendChild(bubble);
   box.scrollTop = box.scrollHeight;
@@ -713,6 +649,10 @@ function removeLoadingBubble() {
 }
 
 function sendQuickQuestion(btn) {
+  if (chatBusy) {
+    window.showToast?.('顾问正在回复中，请稍等片刻', 'alert');
+    return;
+  }
   const input = document.getElementById('chat-input');
   const dest = document.getElementById('route-dest').value;
   let q = btn.textContent;
@@ -730,7 +670,7 @@ async function sendChatMessage() {
   if (!text) return;
 
   if (!getAiConfig()) {
-    alert('AI 尚未配置。\n请打开项目目录下的 config.js，按注释填入 API Key 并保存，然后刷新页面。');
+    window.showToast('AI 尚未配置。\n请打开项目目录下的 config.js，按注释填入 API Key 并保存，然后刷新页面。', 'alert');
     return;
   }
 
@@ -752,7 +692,7 @@ async function sendChatMessage() {
     appendChatBubble('assistant', reply);
   } catch (err) {
     removeLoadingBubble();
-    appendChatBubble('assistant', `😢 ${describeAiError(err)}`);
+    appendChatBubble('assistant', describeAiError(err));
     chatHistory.pop(); // 移除失败这轮的用户消息，方便重试
   } finally {
     chatBusy = false;
@@ -764,8 +704,8 @@ function initChat() {
   const box = document.getElementById('chat-messages');
   box.innerHTML = `
     <div class="chat-bubble chat-ai">
-      <div class="chat-avatar">🤖</div>
-      <div class="chat-text">你好呀！我是你的 <strong>AI旅行顾问</strong> ✈️<br>告诉我你想去哪里、玩几天、和谁一起、预算多少，我来帮你量身规划行程！<br>也可以先在路线规划页选好城市，我会自动获取上下文哦～</div>
+      <div class="chat-avatar">${U.iconSvg('bot')}</div>
+      <div class="chat-text">你好，我是你的 <strong>AI 旅行顾问</strong>。<br>告诉我目的地、天数、同行人和预算，我会为你整理一份贴合实际的建议。<br>也可以先在路线规划页选好城市，我会自动获取上下文。</div>
     </div>`;
 
   const input = document.getElementById('chat-input');
@@ -778,67 +718,29 @@ function initChat() {
 }
 
 // ========== 行李清单 ==========
-const packingData = {
-  essentials: {
-    name: '📋 必备物品',
-    items: ['身份证/护照', '手机+充电器', '钱包/银行卡', '钥匙', '纸巾/湿巾', '口罩']
-  },
-  clothes: {
-    name: '👕 衣物',
-    hot: ['短袖T恤', '短裤/裙子', '凉鞋', '太阳帽', '墨镜', '防晒霜'],
-    warm: ['长袖衬衫', '薄外套', '长裤', '运动鞋', '薄围巾'],
-    cool: ['毛衣', '风衣', '长裤', '运动鞋', '围巾'],
-    cold: ['羽绒服', '保暖内衣', '毛衣', '厚裤子', '雪地靴', '手套', '帽子', '围巾']
-  },
-  toiletries: {
-    name: '🧴 洗漱用品',
-    items: ['牙刷牙膏', '毛巾', '洗发水', '沐浴露', '护肤品', '梳子', '剃须刀']
-  },
-  electronics: {
-    name: '🔌 电子设备',
-    items: ['充电宝', '数据线', '耳机', '相机', '自拍杆', '转换插头']
-  },
-  beach: {
-    name: '🏖️ 海边专用',
-    items: ['泳衣', '沙滩巾', '防水袋', '浮潜装备', '沙滩鞋']
-  },
-  mountain: {
-    name: '⛰️ 登山专用',
-    items: ['登山鞋', '登山杖', '冲锋衣', '头灯', '急救包', '能量棒']
-  },
-  business: {
-    name: '💼 商务专用',
-    items: ['正装', '皮鞋', '名片', '笔记本电脑', '文件夹']
-  },
-  photo: {
-    name: '📷 摄影专用',
-    items: ['三脚架', '备用电池', '存储卡', '镜头清洁套装', '防雨罩']
-  }
-};
-
 function generatePackingList() {
   const dest = document.getElementById('packing-dest').value.trim();
   const weather = document.getElementById('packing-weather').value;
   const days = document.getElementById('packing-days').value;
 
   if (!dest) {
-    alert('请输入目的地');
+    window.showToast('请输入目的地', 'alert');
     return;
   }
 
   const categories = [];
-  categories.push({ ...packingData.essentials });
+  categories.push({ ...D.packingData.essentials });
 
-  const clothesItems = packingData.clothes[weather] || packingData.clothes.warm;
-  categories.push({ name: '👕 衣物', items: [...clothesItems] });
+  const clothesItems = D.packingData.clothes[weather] || D.packingData.clothes.warm;
+  categories.push({ name: '衣物', icon: 'shirt', items: [...clothesItems] });
 
-  categories.push({ ...packingData.toiletries });
-  categories.push({ ...packingData.electronics });
+  categories.push({ ...D.packingData.toiletries });
+  categories.push({ ...D.packingData.electronics });
 
-  if (document.getElementById('opt-beach').checked) categories.push({ ...packingData.beach });
-  if (document.getElementById('opt-mountain').checked) categories.push({ ...packingData.mountain });
-  if (document.getElementById('opt-business').checked) categories.push({ ...packingData.business });
-  if (document.getElementById('opt-photo').checked) categories.push({ ...packingData.photo });
+  if (document.getElementById('opt-beach').checked) categories.push({ ...D.packingData.beach });
+  if (document.getElementById('opt-mountain').checked) categories.push({ ...D.packingData.mountain });
+  if (document.getElementById('opt-business').checked) categories.push({ ...D.packingData.business });
+  if (document.getElementById('opt-photo').checked) categories.push({ ...D.packingData.photo });
 
   if (parseInt(days) >= 7) {
     categories[1].items.push('备用衣物套装');
@@ -847,17 +749,25 @@ function generatePackingList() {
   renderPackingList(categories, dest);
 }
 
+// 当前清单对应的目的地，勾选状态按目的地分别持久化
+let currentPackingDest = '';
+const packingStorageKey = dest => `tripwise-packing#${dest}`;
+
 function renderPackingList(categories, dest) {
+  currentPackingDest = dest;
   document.getElementById('packing-result').style.display = 'block';
+
+  // 恢复该目的地之前保存的勾选记录
+  const saved = U.readStoredJson(packingStorageKey(dest), {}, value => value && typeof value === 'object' && !Array.isArray(value));
 
   const listEl = document.getElementById('packing-list');
   listEl.innerHTML = categories.map((cat, catIdx) => `
     <div class="packing-category">
-      <h4>${cat.name}</h4>
+      <h4>${U.iconSvg(cat.icon || 'list')}<span>${U.escapeHtml(cat.name)}</span></h4>
       ${cat.items.map((item, itemIdx) => `
         <div class="packing-item" data-cat="${catIdx}" data-item="${itemIdx}">
-          <input type="checkbox" id="item-${catIdx}-${itemIdx}" onchange="updateProgress()">
-          <label for="item-${catIdx}-${itemIdx}">${item}</label>
+          <input type="checkbox" id="item-${catIdx}-${itemIdx}" value="${U.escapeHtml(item)}" onchange="updateProgress()" ${saved[item] ? 'checked' : ''}>
+          <label for="item-${catIdx}-${itemIdx}">${U.escapeHtml(item)}</label>
         </div>
       `).join('')}
     </div>
@@ -881,67 +791,57 @@ function updateProgress() {
 
   document.getElementById('packing-progress-fill').style.width = percent + '%';
   document.getElementById('packing-progress-text').textContent = `${done}/${total} 已准备`;
+
+  // 把勾选状态按物品名保存下来，重新生成清单时自动恢复
+  if (currentPackingDest) {
+    const saved = {};
+    items.forEach(item => {
+      const input = item.querySelector('input');
+      if (input.checked) saved[input.value] = true;
+    });
+    U.storeJson(packingStorageKey(currentPackingDest), saved);
+  }
 }
 
 // ========== 地标打卡 ==========
-const landmarkData = {
-  '北京': [
-    { name: '故宫', desc: '紫禁城', icon: '🏯' },
-    { name: '长城', desc: '八达岭/慕田峪', icon: '🧱' },
-    { name: '天坛', desc: '祈年殿', icon: '🏛️' },
-    { name: '颐和园', desc: '皇家园林', icon: '🏞️' },
-    { name: '鸟巢', desc: '国家体育场', icon: '🏟️' },
-    { name: '水立方', desc: '国家游泳中心', icon: '💧' }
-  ],
-  '上海': [
-    { name: '东方明珠', desc: '地标电视塔', icon: '🗼' },
-    { name: '外滩', desc: '万国建筑群', icon: '🏛️' },
-    { name: '豫园', desc: '古典园林', icon: '🏯' },
-    { name: '迪士尼', desc: '主题乐园', icon: '🏰' },
-    { name: '陆家嘴', desc: '金融中心', icon: '🏙️' },
-    { name: '南京路', desc: '商业街', icon: '🛍️' }
-  ],
-  '成都': [
-    { name: '熊猫基地', desc: '大熊猫繁育', icon: '🐼' },
-    { name: '武侯祠', desc: '三国文化', icon: '🏯' },
-    { name: '锦里', desc: '古街民俗', icon: '🏮' },
-    { name: '宽窄巷子', desc: '老成都', icon: '🏘️' },
-    { name: 'IFS', desc: '爬墙熊猫', icon: '🐼' },
-    { name: '都江堰', desc: '水利奇迹', icon: '🌊' }
-  ],
-  '广州': [
-    { name: '广州塔', desc: '小蛮腰', icon: '🗼' },
-    { name: '陈家祠', desc: '岭南建筑', icon: '🏛️' },
-    { name: '沙面', desc: '欧式建筑', icon: '🏘️' },
-    { name: '长隆', desc: '主题乐园', icon: '🎢' },
-    { name: '白云山', desc: '城市绿肺', icon: '⛰️' },
-    { name: '北京路', desc: '千年古道', icon: '🛍️' }
-  ],
-  '杭州': [
-    { name: '西湖', desc: '人间天堂', icon: '🏞️' },
-    { name: '灵隐寺', desc: '千年古刹', icon: '🏯' },
-    { name: '宋城', desc: '主题公园', icon: '🏰' },
-    { name: '千岛湖', desc: '天下第一秀水', icon: '🏞️' },
-    { name: '西溪湿地', desc: '城市湿地', icon: '🌿' },
-    { name: '雷峰塔', desc: '白蛇传说', icon: '🗼' }
-  ],
-  '厦门': [
-    { name: '鼓浪屿', desc: '海上花园', icon: '🏝️' },
-    { name: '南普陀寺', desc: '佛教圣地', icon: '🏯' },
-    { name: '厦门大学', desc: '最美校园', icon: '🎓' },
-    { name: '曾厝垵', desc: '文艺渔村', icon: '🏘️' },
-    { name: '环岛路', desc: '海滨大道', icon: '🛣️' },
-    { name: '集美学村', desc: '嘉庚建筑', icon: '🏛️' }
-  ]
-};
-
 let currentCity = '北京';
-let checkedLandmarks = JSON.parse(localStorage.getItem('checkedLandmarks') || '{}');
+let checkedLandmarks = U.readStoredJson('checkedLandmarks', {}, value => value && typeof value === 'object' && !Array.isArray(value));
+
+// 打卡记录使用稳定的"城市#地标名"作为 key（数组下标会因为数据增删而错位）
+function landmarkKey(city, lm) {
+  return `${city}#${lm.name}`;
+}
+
+// 一次性迁移：把旧版"城市-下标"格式的记录映射到新 key
+function migrateCheckedLandmarks(data) {
+  let changed = false;
+  const result = {};
+  Object.keys(data).forEach(key => {
+    if (key.includes('#')) {
+      result[key] = data[key];
+      return;
+    }
+    const match = key.match(/^(.+)-(\d+)$/);
+    if (match) {
+      const lm = D.landmarkData[match[1]]?.[Number(match[2])];
+      if (lm) {
+        result[landmarkKey(match[1], lm)] = data[key];
+        changed = true;
+        return;
+      }
+    }
+    result[key] = data[key];
+  });
+  if (changed) U.storeJson('checkedLandmarks', result);
+  return result;
+}
+
+checkedLandmarks = migrateCheckedLandmarks(checkedLandmarks);
 
 function initLandmarks() {
   const citySelector = document.getElementById('city-selector');
-  citySelector.innerHTML = Object.keys(landmarkData).map(city => `
-    <button class="city-btn ${city === currentCity ? 'active' : ''}" onclick="selectCity('${city}')">${city}</button>
+  citySelector.innerHTML = Object.keys(D.landmarkData).map(city => `
+    <button class="city-btn ${city === currentCity ? 'active' : ''}" onclick="selectCity(${U.jsStringArg(city)})">${U.escapeHtml(city)}</button>
   `).join('');
 
   renderLandmarks();
@@ -958,28 +858,30 @@ function selectCity(city) {
 
 function renderLandmarks() {
   const grid = document.getElementById('landmark-grid');
-  const landmarks = landmarkData[currentCity] || [];
+  const landmarks = D.landmarkData[currentCity] || [];
 
   grid.innerHTML = landmarks.map((lm, idx) => {
-    const key = `${currentCity}-${idx}`;
-    const isChecked = checkedLandmarks[key];
+    const key = landmarkKey(currentCity, lm);
+    const isChecked = Boolean(checkedLandmarks[key]);
     return `
-      <div class="landmark-card ${isChecked ? 'checked' : ''}" onclick="toggleLandmark('${currentCity}', ${idx})">
-        <div class="landmark-image">${lm.icon}</div>
-        <div class="landmark-info">
-          <h4>${lm.name}</h4>
-          <p>${lm.desc}</p>
-        </div>
-        <div class="landmark-check">✓</div>
-      </div>
+      <button class="landmark-card ${isChecked ? 'checked' : ''}" type="button" aria-pressed="${isChecked}" aria-label="${U.escapeHtml(lm.name)}，${isChecked ? '已打卡' : '未打卡'}" onclick="toggleLandmark(${U.jsStringArg(currentCity)}, ${idx})">
+        <span class="landmark-image">${U.iconFrom(lm.icon)}</span>
+        <span class="landmark-info">
+          <strong>${U.escapeHtml(lm.name)}</strong>
+          <span>${U.escapeHtml(lm.desc)}</span>
+        </span>
+        <span class="landmark-check">${U.iconSvg('check')}</span>
+      </button>
     `;
   }).join('');
 }
 
 function toggleLandmark(city, idx) {
-  const key = `${city}-${idx}`;
+  const lm = D.landmarkData[city][idx];
+  if (!lm) return;
+  const key = landmarkKey(city, lm);
   checkedLandmarks[key] = !checkedLandmarks[key];
-  localStorage.setItem('checkedLandmarks', JSON.stringify(checkedLandmarks));
+  U.storeJson('checkedLandmarks', checkedLandmarks);
 
   renderLandmarks();
   updateLandmarkStats();
@@ -990,7 +892,7 @@ function toggleLandmark(city, idx) {
 }
 
 function showCheckinModal(city, idx) {
-  const lm = landmarkData[city][idx];
+  const lm = D.landmarkData[city][idx];
   document.getElementById('modal-title').textContent = `打卡成功！`;
   document.getElementById('modal-desc').textContent = `恭喜你打卡了${city}的${lm.name}！`;
   document.getElementById('checkin-modal').style.display = 'flex';
@@ -1003,13 +905,12 @@ function closeModal() {
 function updateLandmarkStats() {
   let checked = 0;
   let total = 0;
-  let citiesUnlocked = new Set();
+  const citiesUnlocked = new Set();
 
-  Object.keys(landmarkData).forEach(city => {
-    total += landmarkData[city].length;
-    landmarkData[city].forEach((_, idx) => {
-      const key = `${city}-${idx}`;
-      if (checkedLandmarks[key]) {
+  Object.keys(D.landmarkData).forEach(city => {
+    total += D.landmarkData[city].length;
+    D.landmarkData[city].forEach(lm => {
+      if (checkedLandmarks[landmarkKey(city, lm)]) {
         checked++;
         citiesUnlocked.add(city);
       }
@@ -1022,45 +923,9 @@ function updateLandmarkStats() {
 }
 
 // ========== 探店盲盒 ==========
-const blindboxData = {
-  beijing: [
-    { category: '咖啡馆', name: 'Metal Hands铁手咖啡', rating: '⭐⭐⭐⭐⭐', desc: '藏在胡同里的精品咖啡馆，手冲咖啡一绝，复古工业风装修。', tags: ['手冲', '胡同', '文艺'], tip: '推荐dirty和澳白，周末人多建议工作日去' },
-    { category: '小酒馆', name: '大跃啤酒', rating: '⭐⭐⭐⭐', desc: '北京本土精酿品牌，胡同里的酿酒厂，必喝淡色艾尔。', tags: ['精酿', '胡同', '夜生活'], tip: '推荐南瓜艾尔和淡色艾尔，配汉堡更佳' },
-    { category: '书店', name: '模范书局', rating: '⭐⭐⭐⭐⭐', desc: '百年教堂改造的书店，穹顶下阅读，氛围感满分。', tags: ['教堂', '书店', '拍照'], tip: '位于西什库，免费参观，拍照请保持安静' },
-    { category: '甜品店', name: 'Awfully Chocolate', rating: '⭐⭐⭐⭐', desc: '新加坡连锁，巧克力蛋糕浓郁醇厚，可可控天堂。', tags: ['巧克力', '甜品', '下午茶'], tip: '推荐Awfully Chocolate蛋糕和热可可' }
-  ],
-  shanghai: [
-    { category: '咖啡馆', name: 'Manner Coffee', rating: '⭐⭐⭐⭐⭐', desc: '上海本土精品咖啡，小窗口大情怀，性价比超高。', tags: ['精品咖啡', '平价', '日常'], tip: '自带杯减5元，推荐澳白和拿铁' },
-    { category: '买手店', name: '栋梁', rating: '⭐⭐⭐⭐⭐', desc: '中国设计师集合店，安福路上的时尚地标。', tags: ['设计师', '时尚', '安福路'], tip: '有很多本土设计师品牌，适合淘货' },
-    { category: '茶馆', name: '煮叶', rating: '⭐⭐⭐⭐', desc: '新中式茶饮，现代空间里喝传统茶，静安寺旁。', tags: ['新中式', '茶饮', '安静'], tip: '推荐冷萃茶系列，环境适合办公' },
-    { category: '面包店', name: 'Farine', rating: '⭐⭐⭐⭐⭐', desc: '法租界面包房，面包界的艺术品，天然酵母发酵。', tags: ['面包', '法式', '法租界'], tip: '推荐面包拼盘和可颂，早上去品种全' }
-  ],
-  chengdu: [
-    { category: '茶馆', name: '鹤鸣茶社', rating: '⭐⭐⭐⭐⭐', desc: '人民公园百年茶馆，竹椅盖碗茶，成都慢生活代表。', tags: ['百年', '盖碗茶', '人民公园'], tip: '下午去最惬意，可以体验掏耳朵' },
-    { category: '小酒馆', name: '小酒馆', rating: '⭐⭐⭐⭐⭐', desc: '赵雷《成都》歌中的地标，玉林路上的音乐圣地。', tags: ['音乐', '文艺', '玉林路'], tip: '晚上有演出，提前占位' },
-    { category: '火锅店', name: '电台巷火锅', rating: '⭐⭐⭐⭐', desc: '本地人爱去的社区火锅，味道地道，排队常态。', tags: ['火锅', '社区', '地道'], tip: '建议下午4点前去排号，毛肚和鹅肠必点' },
-    { category: '甜品店', name: '方所书店', desc: '地下书店综合体，设计感强，咖啡也不错。', rating: '⭐⭐⭐⭐⭐', tags: ['书店', '设计', '咖啡'], tip: '位于太古里负一层，适合下雨天' }
-  ],
-  guangzhou: [
-    { category: '茶楼', name: '点都德', rating: '⭐⭐⭐⭐', desc: '老字号早茶，虾饺凤爪叉烧包，正宗广式点心。', tags: ['早茶', '老字号', '广式'], tip: '推荐金沙流沙包和虾饺，早上10点前去' },
-    { category: '咖啡馆', name: '.jpg咖啡', rating: '⭐⭐⭐⭐⭐', desc: '东山口网红咖啡，老洋房改造，出片率极高。', tags: ['网红', '洋房', '东山口'], tip: '推荐dirty，拍照很出片' },
-    { category: '糖水铺', name: '南信牛奶甜品', rating: '⭐⭐⭐⭐', desc: '上下九百年老店，双皮奶姜撞奶，广式甜品经典。', tags: ['老字号', '双皮奶', '上下九'], tip: '双皮奶和姜撞奶必点，热的更好喝' }
-  ],
-  hangzhou: [
-    { category: '茶馆', name: '青藤茶馆', rating: '⭐⭐⭐⭐⭐', desc: '西湖边老茶馆，龙井茶配西湖景色，杭州味道。', tags: ['龙井', '西湖', '传统'], tip: '推荐明前龙井，靠窗位置看西湖' },
-    { category: '咖啡馆', name: 'Seesaw Coffee', rating: '⭐⭐⭐⭐', desc: '西湖边精品咖啡，落地窗看湖景，杭州最美咖啡馆之一。', tags: ['湖景', '精品咖啡', '西湖'], tip: '推荐长相思手冲，下午阳光最美' },
-    { category: '书店', name: '晓风书屋', rating: '⭐⭐⭐⭐⭐', desc: '西湖边独立书店，文艺青年聚集地，选书有品味。', tags: ['独立书店', '文艺', '西湖'], tip: '经常有文化活动，可以关注公众号' }
-  ],
-  xiamen: [
-    { category: '咖啡馆', name: '32号咖啡馆', rating: '⭐⭐⭐⭐⭐', desc: '鼓浪屿老别墅咖啡，百年建筑里喝咖啡看海。', tags: ['鼓浪屿', '老别墅', '海景'], tip: '推荐拿铁和提拉米苏，二楼视野更好' },
-    { category: '小吃店', name: '八婆婆烧仙草', rating: '⭐⭐⭐⭐', desc: '中山路老字号，烧仙草清凉解暑，厦门必吃。', tags: ['老字号', '烧仙草', '中山路'], tip: '夏天必点，料很足' },
-    { category: '海鲜排档', name: '阿杰海鲜', rating: '⭐⭐⭐⭐', desc: '八市本地人爱去的海鲜排档，新鲜实惠。', tags: ['海鲜', '八市', '本地'], tip: '建议早上去八市买海鲜，拿到店里加工' }
-  ]
-};
-
 function openBlindBox() {
   const city = document.getElementById('blindbox-city').value;
-  const shops = blindboxData[city] || blindboxData.beijing;
+  const shops = D.blindboxData[city] || D.blindboxData.beijing;
   const shop = shops[Math.floor(Math.random() * shops.length)];
 
   document.getElementById('blindbox-front').style.display = 'none';
@@ -1069,13 +934,13 @@ function openBlindBox() {
 
   document.getElementById('reveal-category').textContent = shop.category;
   document.getElementById('reveal-name').textContent = shop.name;
-  document.getElementById('reveal-rating').textContent = shop.rating;
+  document.getElementById('reveal-rating').textContent = `${[...shop.rating].filter(char => char === '⭐').length || shop.rating} / 5`;
   document.getElementById('reveal-desc').textContent = shop.desc;
-  document.getElementById('reveal-tags').innerHTML = shop.tags.map(t => `<span class="reveal-tag">${t}</span>`).join('');
-  document.getElementById('reveal-tip').innerHTML = `<strong>💡 小贴士：</strong>${shop.tip}`;
+  document.getElementById('reveal-tags').innerHTML = shop.tags.map(t => `<span class="reveal-tag">${U.escapeHtml(t)}</span>`).join('');
+  document.getElementById('reveal-tip').innerHTML = `<strong>${U.iconSvg('idea')}小贴士：</strong><span>${U.escapeHtml(shop.tip)}</span>`;
 
   setTimeout(() => {
-    document.getElementById('blindbox-btn').textContent = '🎲 再抽一次';
+    document.getElementById('blindbox-btn').innerHTML = `${U.iconSvg('refresh')}<span>再抽一次</span>`;
   }, 500);
 }
 
@@ -1093,7 +958,7 @@ document.querySelectorAll('.style-btn').forEach(btn => {
 function generateJournal() {
   const text = document.getElementById('journal-text').value.trim();
   if (!text) {
-    alert('请输入旅途文字');
+    window.showToast('请输入旅途文字', 'alert');
     return;
   }
 
@@ -1103,68 +968,61 @@ function generateJournal() {
   const today = new Date();
   const dateStr = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`;
 
-  document.getElementById('journal-date').textContent = `📅 ${dateStr}`;
-  document.getElementById('journal-weather').textContent = getWeatherEmoji();
+  document.getElementById('journal-date').innerHTML = `${U.iconSvg('calendar')}<span>${dateStr}</span>`;
+  document.getElementById('journal-weather').innerHTML = getJournalWeather();
 
   const styles = {
-    cute: { bg: 'linear-gradient(135deg, #fdf2f8, #fce7f3)', color: '#be185d', stickers: ['🌸', '🎀', '💖', '✨'], doodles: ['🌈', '⭐', '🦋'] },
-    retro: { bg: 'linear-gradient(135deg, #fef3c7, #fde68a)', color: '#92400e', stickers: ['📷', '🎞️', '📻', '🎨'], doodles: ['🎭', '🎪', '🎬'] },
-    fresh: { bg: 'linear-gradient(135deg, #d1fae5, #a7f3d0)', color: '#065f46', stickers: ['🌿', '🍃', '🌱', '💚'], doodles: ['🌻', '🌼', '🍀'] },
-    ink: { bg: 'linear-gradient(135deg, #f3f4f6, #e5e7eb)', color: '#1f2937', stickers: ['🎨', '🖌️', '📜', '🏮'], doodles: ['🎋', '🎍', '🎎'] }
+    cute: { bg: 'linear-gradient(135deg, #fdf2f8, #fce7f3)', color: '#be185d', stickers: ['sparkles', 'leaf', 'happy'], doodles: ['sun', 'cloud'] },
+    retro: { bg: 'linear-gradient(135deg, #fef3c7, #fde68a)', color: '#92400e', stickers: ['camera', 'images', 'palette'], doodles: ['sunset', 'sparkles'] },
+    fresh: { bg: 'linear-gradient(135deg, #d1fae5, #a7f3d0)', color: '#065f46', stickers: ['leaf', 'tree', 'waves'], doodles: ['sun', 'cloud'] },
+    ink: { bg: 'linear-gradient(135deg, #f3f4f6, #e5e7eb)', color: '#1f2937', stickers: ['palette', 'landmark', 'mountain'], doodles: ['leaf', 'wind'] }
   };
 
   const style = styles[currentStyle];
   page.style.background = style.bg;
   page.style.color = style.color;
 
-  const processedText = text
-    .replace(/。/g, '。<br>')
-    .replace(/！/g, '！✨')
-    .replace(/？/g, '？🤔')
-    .replace(/美/g, '美💕')
-    .replace(/好吃/g, '好吃😋')
-    .replace(/开心/g, '开心🥰');
+  const processedText = U.escapeHtml(text)
+    .replace(/。/g, '。<br>');
 
   document.getElementById('journal-content').innerHTML = processedText;
-  document.getElementById('journal-stickers').innerHTML = style.stickers.map(s => `<div>${s}</div>`).join('');
-  document.getElementById('journal-doodles').innerHTML = style.doodles.map(d => `<div>${d}</div>`).join('');
+  document.getElementById('journal-stickers').innerHTML = style.stickers.map(s => `<div>${U.iconSvg(s)}</div>`).join('');
+  document.getElementById('journal-doodles').innerHTML = style.doodles.map(d => `<div>${U.iconSvg(d)}</div>`).join('');
 }
 
-function getWeatherEmoji() {
-  const weathers = ['☀️ 晴', '⛅ 多云', '🌤️ 晴间多云', '🌈 雨后彩虹'];
-  return weathers[Math.floor(Math.random() * weathers.length)];
+// 同一天多次生成手账时天气保持一致，避免每点一次就变天
+let journalWeatherCache = null;
+function getJournalWeather() {
+  const now = new Date();
+  const dateKey = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+  if (!journalWeatherCache || journalWeatherCache.dateKey !== dateKey) {
+    const weathers = [
+      { icon: 'sun', label: '晴' },
+      { icon: 'cloud-sun', label: '多云' },
+      { icon: 'wind', label: '微风' },
+      { icon: 'rain', label: '阵雨' }
+    ];
+    journalWeatherCache = { dateKey, weather: weathers[Math.floor(Math.random() * weathers.length)] };
+  }
+  const { weather } = journalWeatherCache;
+  return `${U.iconSvg(weather.icon)}<span>${weather.label}</span>`;
 }
 
+// 基座实现：仅作降级兜底。v2.js 会用带 html2canvas 的完整实现覆盖它，
+// 覆盖后会优先走到 v2 的分支，只有 v2 缺失时才落到这里。
+// 注意：这里不能假定"没生成手账"——v2 在导出组件缺失时也会调进来，
+// 所以按实际状态区分提示，避免给出误导性信息。
 function downloadJournal() {
-  alert('📥 手账图片已保存！（演示功能）');
+  const output = document.getElementById('journal-output');
+  const ready = output && output.style.display !== 'none';
+  window.showToast(ready ? '导出组件不可用，请检查网络后重试' : '请先生成手账后再保存图片。', 'alert');
 }
 
 function shareJournal() {
-  alert('📤 分享链接已复制！（演示功能）');
+  window.showToast('请先生成手账后再分享。', 'alert');
 }
 
 // ========== 旅行预算计算器 ==========
-const cityCostLevel = {
-  '北京': { hotel: { budget: 150, comfort: 300, luxury: 600 }, food: { budget: 60, comfort: 120, luxury: 250 }, ticket: 80, transport_local: 30 },
-  '上海': { hotel: { budget: 180, comfort: 350, luxury: 700 }, food: { budget: 70, comfort: 130, luxury: 280 }, ticket: 70, transport_local: 30 },
-  '成都': { hotel: { budget: 100, comfort: 220, luxury: 500 }, food: { budget: 40, comfort: 90, luxury: 200 }, ticket: 50, transport_local: 20 },
-  '贵阳': { hotel: { budget: 80, comfort: 180, luxury: 400 }, food: { budget: 35, comfort: 80, luxury: 180 }, ticket: 60, transport_local: 20 },
-  '广州': { hotel: { budget: 150, comfort: 300, luxury: 600 }, food: { budget: 50, comfort: 110, luxury: 230 }, ticket: 60, transport_local: 25 },
-  '杭州': { hotel: { budget: 150, comfort: 300, luxury: 600 }, food: { budget: 55, comfort: 110, luxury: 230 }, ticket: 70, transport_local: 25 },
-  '厦门': { hotel: { budget: 120, comfort: 250, luxury: 550 }, food: { budget: 45, comfort: 100, luxury: 220 }, ticket: 50, transport_local: 20 },
-  '重庆': { hotel: { budget: 100, comfort: 220, luxury: 500 }, food: { budget: 40, comfort: 90, luxury: 200 }, ticket: 50, transport_local: 20 },
-  '西安': { hotel: { budget: 100, comfort: 220, luxury: 480 }, food: { budget: 40, comfort: 85, luxury: 190 }, ticket: 80, transport_local: 20 },
-  '南京': { hotel: { budget: 130, comfort: 260, luxury: 550 }, food: { budget: 45, comfort: 100, luxury: 210 }, ticket: 60, transport_local: 20 },
-  '武汉': { hotel: { budget: 100, comfort: 220, luxury: 480 }, food: { budget: 40, comfort: 90, luxury: 200 }, ticket: 50, transport_local: 20 },
-  '长沙': { hotel: { budget: 100, comfort: 220, luxury: 480 }, food: { budget: 40, comfort: 90, luxury: 200 }, ticket: 50, transport_local: 20 },
-  '深圳': { hotel: { budget: 180, comfort: 350, luxury: 700 }, food: { budget: 60, comfort: 120, luxury: 260 }, ticket: 60, transport_local: 30 },
-  '青岛': { hotel: { budget: 120, comfort: 260, luxury: 550 }, food: { budget: 50, comfort: 110, luxury: 240 }, ticket: 50, transport_local: 25 },
-  '三亚': { hotel: { budget: 150, comfort: 350, luxury: 800 }, food: { budget: 50, comfort: 120, luxury: 280 }, ticket: 100, transport_local: 30 },
-  '昆明': { hotel: { budget: 80, comfort: 200, luxury: 450 }, food: { budget: 35, comfort: 80, luxury: 180 }, ticket: 60, transport_local: 20 }
-};
-
-const transportCost = { train: 300, plane: 800, self: 500 };
-
 function calculateBudget() {
   const dest = document.getElementById('budget-dest').value;
   const people = parseInt(document.getElementById('budget-people').value);
@@ -1173,14 +1031,14 @@ function calculateBudget() {
   const food = document.getElementById('budget-food').value;
   const transport = document.getElementById('budget-transport').value;
 
-  if (!dest) { alert('请选择目的地'); return; }
+  if (!dest) { window.showToast('请选择目的地', 'alert'); return; }
 
-  const cost = cityCostLevel[dest] || cityCostLevel['北京'];
+  const cost = D.cityCostLevel[dest] || D.cityCostLevel['北京'];
   const hotelPerNight = cost.hotel[hotel];
   const foodPerDay = cost.food[food];
   const ticketPerDay = cost.ticket;
   const localTransportPerDay = cost.transport_local;
-  const bigTransport = transportCost[transport];
+  const bigTransport = D.transportCost[transport];
 
   const hotelTotal = hotelPerNight * (days - 1) * Math.ceil(people / 2);
   const foodTotal = foodPerDay * days * people;
@@ -1196,21 +1054,27 @@ function calculateBudget() {
   document.getElementById('budget-per-person').textContent = `人均 ¥${perPerson.toLocaleString()}`;
 
   const items = [
-    { name: '🚄 大交通（往返）', amount: bigTransportTotal, color: '#6366f1', percent: 0 },
-    { name: '🏨 住宿', amount: hotelTotal, color: '#ec4899', percent: 0 },
-    { name: '🍜 餐饮', amount: foodTotal, color: '#f59e0b', percent: 0 },
-    { name: '🎫 门票', amount: ticketTotal, color: '#10b981', percent: 0 },
-    { name: '🚇 市内交通', amount: localTransportTotal, color: '#8b5cf6', percent: 0 },
-    { name: '🛍️ 购物/其他', amount: shoppingBudget, color: '#ef4444', percent: 0 }
+    { name: '大交通（往返）', icon: 'train', amount: bigTransportTotal, color: '#6366f1', percent: 0 },
+    { name: '住宿', icon: 'buildings', amount: hotelTotal, color: '#ec4899', percent: 0 },
+    { name: '餐饮', icon: 'food', amount: foodTotal, color: '#f59e0b', percent: 0 },
+    { name: '门票', icon: 'ticket', amount: ticketTotal, color: '#10b981', percent: 0 },
+    { name: '市内交通', icon: 'train', amount: localTransportTotal, color: '#8b5cf6', percent: 0 },
+    { name: '购物/其他', icon: 'store', amount: shoppingBudget, color: '#ef4444', percent: 0 }
   ];
   items.forEach(item => item.percent = Math.round(item.amount / total * 100));
+  // 各项四舍五入后合计可能不是 100，把误差调整到占比最大的一项上
+  const percentSum = items.reduce((sum, item) => sum + item.percent, 0);
+  if (percentSum !== 100 && items.length) {
+    const largest = items.reduce((a, b) => (b.percent > a.percent ? b : a), items[0]);
+    largest.percent = Math.max(0, largest.percent + (100 - percentSum));
+  }
 
   document.getElementById('budget-breakdown').innerHTML = `
-    <h4>💸 费用明细</h4>
+    <h4>${U.iconSvg('wallet')}费用明细</h4>
     ${items.map(item => `
     <div class="budget-item">
       <div class="budget-item-header">
-        <span>${item.name}</span>
+        <span class="budget-item-name">${U.iconSvg(item.icon)}<span>${item.name}</span></span>
         <span class="budget-item-amount">¥${item.amount.toLocaleString()}</span>
       </div>
       <div class="budget-item-bar">
@@ -1222,154 +1086,64 @@ function calculateBudget() {
 
   const tips = getBudgetTips(dest, hotel, food, transport, days);
   document.getElementById('budget-tips').innerHTML = `
-    <h4>💡 省钱小贴士</h4>
-    <div class="tips-grid">${tips.map(tip => `<div class="tip-item"><span class="tip-icon">${tip.icon}</span><span>${tip.text}</span></div>`).join('')}</div>
-  `;
+    <h4>${U.iconSvg('idea')}省钱小贴士</h4>
+    <div class="tips-grid">${tips.map(tip => `<div class="tip-item"><span class="tip-icon">${U.iconFrom(tip.icon)}</span><span>${U.escapeHtml(tip.text)}</span></div>`).join('')}</div>`;
 }
 
 function getBudgetTips(dest, hotel, food, transport, days) {
   const tips = [
-    { icon: '🎫', text: '提前网上购票通常比现场便宜10-20%' },
-    { icon: '🏨', text: '工作日住宿比周末便宜30%以上' },
-    { icon: '🍜', text: '避开景区周边餐厅，本地人去的更实惠' },
-    { icon: '🚇', text: '办一张当地交通卡，地铁公交都有折扣' },
+    { icon: 'ticket', text: '提前网上购票通常比现场便宜10-20%' },
+    { icon: 'buildings', text: '工作日住宿比周末便宜30%以上' },
+    { icon: 'food', text: '避开景区周边餐厅，本地人去的更实惠' },
+    { icon: 'train', text: '办一张当地交通卡，地铁公交都有折扣' },
   ];
-  if (transport === 'plane') tips.push({ icon: '✈️', text: '提前2周订票通常最便宜' });
-  if (hotel === 'luxury') tips.push({ icon: '🏡', text: '豪华型可以考虑民宿，性价比更高' });
-  if (days >= 5) tips.push({ icon: '📅', text: '5天以上行程建议购买景点联票' });
+  if (transport === 'plane') tips.push({ icon: 'plane', text: '提前2周订票通常最便宜' });
+  if (hotel === 'luxury') tips.push({ icon: 'home', text: '豪华型可以考虑民宿，性价比更高' });
+  if (days >= 5) tips.push({ icon: 'calendar', text: '5天以上行程建议购买景点联票' });
   const cityTips = {
-    '北京': [{ icon: '🏛️', text: '很多博物馆免费，提前预约即可' }],
-    '成都': [{ icon: '🐼', text: '熊猫基地早上去，门票更值' }],
-    '三亚': [{ icon: '🏖️', text: '11-3月是旺季，避开春节价格减半' }],
-    '西安': [{ icon: '🏛️', text: '兵马俑学生票半价' }],
+    '北京': [{ icon: 'landmark', text: '很多博物馆免费，提前预约即可' }],
+    '成都': [{ icon: 'place', text: '熊猫基地早上去，门票更值' }],
+    '三亚': [{ icon: 'umbrella', text: '11-3月是旺季，避开春节价格减半' }],
+    '西安': [{ icon: 'landmark', text: '兵马俑学生票半价' }],
   };
   if (cityTips[dest]) tips.push(...cityTips[dest]);
   return tips;
 }
 
 // ========== 方言课堂 ==========
-const dialectData = {
-  beijing: [
-    { phrase: '您好', dialect: '您好嘞', pinyin: 'nín hǎo lei', meaning: '打招呼，比"你好"更客气', example: '您好嘞，吃了吗您？' },
-    { phrase: '很好', dialect: '倍儿棒', pinyin: 'bèir bàng', meaning: '非常好，特别棒', example: '这烤鸭倍儿棒！' },
-    { phrase: '聊天', dialect: '侃大山', pinyin: 'kǎn dà shān', meaning: '闲聊、聊天', example: '咱俩找个地方侃大山去' },
-    { phrase: '厉害', dialect: '牛', pinyin: 'niú', meaning: '很厉害、很出色', example: '这哥们儿真牛！' },
-    { phrase: '舒服', dialect: '舒坦', pinyin: 'shū tan', meaning: '舒服、惬意', example: '这澡洗得真舒坦' },
-    { phrase: '别说了', dialect: '得嘞', pinyin: 'děi lei', meaning: '好的、知道了（表示同意）', example: '得嘞，我明白了' }
-  ],
-  shanghai: [
-    { phrase: '你好', dialect: '侬好', pinyin: 'nóng hǎo', meaning: '你好（上海话打招呼）', example: '侬好，饭吃过伐？' },
-    { phrase: '谢谢', dialect: '谢谢侬', pinyin: 'xià xià nóng', meaning: '谢谢你', example: '谢谢侬帮我拿东西' },
-    { phrase: '很好', dialect: '老灵额', pinyin: 'lǎo líng e', meaning: '很好、很棒', example: '这家餐厅老灵额！' },
-    { phrase: '不要', dialect: '勿要', pinyin: 'vè yào', meaning: '不要', example: '勿要客气，随便坐' },
-    { phrase: '什么', dialect: '啥', pinyin: 'shà', meaning: '什么', example: '侬吃啥？' },
-    { phrase: '好玩', dialect: '好白相', pinyin: 'ho bā xiàng', meaning: '好玩、有趣', example: '迪士尼好白相！' }
-  ],
-  chengdu: [
-    { phrase: '你好', dialect: '你好哇', pinyin: 'nǐ hǎo wa', meaning: '你好（四川话打招呼）', example: '你好哇，吃火锅不？' },
-    { phrase: '很好', dialect: '巴适', pinyin: 'bā shì', meaning: '很好、舒服、满意', example: '这个火锅巴适得很！' },
-    { phrase: '聊天', dialect: '摆龙门阵', pinyin: 'bǎi lóng mén zhèn', meaning: '聊天、闲谈', example: '来摆龙门阵嘛' },
-    { phrase: '厉害', dialect: '凶', pinyin: 'xiōng', meaning: '很厉害', example: '这个人凶得很' },
-    { phrase: '不要', dialect: '莫要', pinyin: 'mò yào', meaning: '不要', example: '莫要客气' },
-    { phrase: '什么', dialect: '啥子', pinyin: 'shá zi', meaning: '什么', example: '你吃啥子？' }
-  ],
-  guangzhou: [
-    { phrase: '你好', dialect: '雷猴', pinyin: 'léi hóu', meaning: '你好（粤语）', example: '雷猴，食左饭未？' },
-    { phrase: '谢谢', dialect: '多谢', pinyin: 'do ze', meaning: '谢谢', example: '多谢你帮我' },
-    { phrase: '很好', dialect: '好犀利', pinyin: 'hou sai lei', meaning: '很厉害', example: '你好犀利啊' },
-    { phrase: '不要', dialect: '唔使', pinyin: 'm sai', meaning: '不用', example: '唔使客气' },
-    { phrase: '什么', dialect: '咩', pinyin: 'mie', meaning: '什么', example: '你食咩？' },
-    { phrase: '好吃', dialect: '好味', pinyin: 'hou mei', meaning: '好吃', example: '呢间野好味' }
-  ],
-  chongqing: [
-    { phrase: '你好', dialect: '你好撒', pinyin: 'nǐ hǎo sa', meaning: '你好', example: '你好撒，吃火锅没？' },
-    { phrase: '很好', dialect: '巴适得板', pinyin: 'bā shì dé bǎn', meaning: '非常好', example: '这个火锅巴适得板' },
-    { phrase: '聊天', dialect: '摆龙门阵', pinyin: 'bǎi lóng mén zhèn', meaning: '聊天', example: '来摆龙门阵嘛' },
-    { phrase: '厉害', dialect: '凶', pinyin: 'xiōng', meaning: '很厉害', example: '这个人凶得很' },
-    { phrase: '不要', dialect: '莫得', pinyin: 'mò dé', meaning: '没有', example: '莫得问题' },
-    { phrase: '什么', dialect: '啥子', pinyin: 'shá zi', meaning: '什么', example: '你吃啥子？' }
-  ],
-  xian: [
-    { phrase: '你好', dialect: '你好嘛', pinyin: 'nǐ hǎo ma', meaning: '你好', example: '你好嘛，吃泡馍没？' },
-    { phrase: '很好', dialect: '美得很', pinyin: 'měi dé hěn', meaning: '很好', example: '这个泡馍美得很' },
-    { phrase: '聊天', dialect: '谝闲传', pinyin: 'pián xián chuán', meaning: '聊天', example: '来谝闲传嘛' },
-    { phrase: '厉害', dialect: '扎势', pinyin: 'zhā shì', meaning: '很厉害', example: '这个人扎势得很' },
-    { phrase: '不要', dialect: '包', pinyin: 'bāo', meaning: '不要', example: '包客气' },
-    { phrase: '什么', dialect: '啥', pinyin: 'shá', meaning: '什么', example: '你吃啥？' }
-  ],
-  hangzhou: [
-    { phrase: '你好', dialect: '侬好', pinyin: 'nóng hǎo', meaning: '你好', example: '侬好，吃饭没？' },
-    { phrase: '很好', dialect: '蛮好', pinyin: 'mán hǎo', meaning: '很好', example: '这个菜蛮好' },
-    { phrase: '聊天', dialect: '谈天', pinyin: 'tán tiān', meaning: '聊天', example: '来谈天嘛' },
-    { phrase: '厉害', dialect: '结棍', pinyin: 'jié gùn', meaning: '很厉害', example: '这个人结棍得很' },
-    { phrase: '不要', dialect: '覅', pinyin: 'fiào', meaning: '不要', example: '覅客气' },
-    { phrase: '什么', dialect: '啥', pinyin: 'shá', meaning: '什么', example: '你吃啥？' }
-  ],
-  changsha: [
-    { phrase: '你好', dialect: '你好噻', pinyin: 'nǐ hǎo sāi', meaning: '你好', example: '你好噻，吃米粉没？' },
-    { phrase: '很好', dialect: '韵味', pinyin: 'yùn wèi', meaning: '很好', example: '这个菜韵味' },
-    { phrase: '聊天', dialect: '谈天', pinyin: 'tán tiān', meaning: '聊天', example: '来谈天嘛' },
-    { phrase: '厉害', dialect: '灵泛', pinyin: 'líng fàn', meaning: '很聪明', example: '这个人灵泛得很' },
-    { phrase: '不要', dialect: '莫', pinyin: 'mò', meaning: '不要', example: '莫客气' },
-    { phrase: '什么', dialect: '么子', pinyin: 'mó zi', meaning: '什么', example: '你吃么子？' }
-  ],
-  xiamen: [
-    { phrase: '你好', dialect: '你好', pinyin: 'lí hó', meaning: '你好（闽南语）', example: '你好，吃饭未？' },
-    { phrase: '谢谢', dialect: '多谢', pinyin: 'to siā', meaning: '谢谢', example: '多谢你' },
-    { phrase: '很好', dialect: '真好', pinyin: 'chin hó', meaning: '很好', example: '这个菜真好' },
-    { phrase: '不要', dialect: '免', pinyin: 'bián', meaning: '不用', example: '免客气' },
-    { phrase: '什么', dialect: '啥', pinyin: 'siáⁿ', meaning: '什么', example: '你吃啥？' },
-    { phrase: '好吃', dialect: '好食', pinyin: 'hó chia̍h', meaning: '好吃', example: '这个好食' }
-  ],
-  wuhan: [
-    { phrase: '你好', dialect: '你好啊', pinyin: 'nǐ hǎo a', meaning: '你好', example: '你好啊，吃热干面没？' },
-    { phrase: '很好', dialect: '蛮好', pinyin: 'mán hǎo', meaning: '很好', example: '这个菜蛮好' },
-    { phrase: '聊天', dialect: '咵天', pinyin: 'kuǎ tiān', meaning: '聊天', example: '来咵天嘛' },
-    { phrase: '厉害', dialect: '灵光', pinyin: 'líng guāng', meaning: '很厉害', example: '这个人灵光得很' },
-    { phrase: '不要', dialect: '莫', pinyin: 'mò', meaning: '不要', example: '莫客气' },
-    { phrase: '什么', dialect: '么事', pinyin: 'mó shì', meaning: '什么', example: '你吃么事？' }
-  ]
-};
-
-const dialectCityNames = { beijing: '北京', shanghai: '上海', chengdu: '成都', guangzhou: '广州', chongqing: '重庆', xian: '西安', hangzhou: '杭州', changsha: '长沙', xiamen: '厦门', wuhan: '武汉' };
-
 function renderDialects() {
   const city = document.getElementById('dialect-city').value;
-  const dialects = dialectData[city] || [];
+  const dialects = D.dialectData[city] || [];
   const grid = document.getElementById('dialect-grid');
 
   grid.innerHTML = dialects.map(d => `
     <div class="dialect-card">
-      <div class="dialect-phrase">${d.phrase}</div>
-      <div class="dialect-dialect">${d.dialect}</div>
-      <div class="dialect-pinyin">${d.pinyin}</div>
-      <div class="dialect-meaning">${d.meaning}</div>
-      <div class="dialect-example">例句：${d.example}</div>
+      <div class="dialect-phrase">${U.escapeHtml(d.phrase)}</div>
+      <div class="dialect-dialect">${U.escapeHtml(d.dialect)}</div>
+      <div class="dialect-pinyin">${U.escapeHtml(d.pinyin)}</div>
+      <div class="dialect-meaning">${U.escapeHtml(d.meaning)}</div>
+      <div class="dialect-example">例句：${U.escapeHtml(d.example)}</div>
     </div>
   `).join('');
 }
 
 function startDialectQuiz() {
   const city = document.getElementById('dialect-city').value;
-  const dialects = dialectData[city] || [];
+  const dialects = D.dialectData[city] || [];
   if (dialects.length === 0) return;
 
   const quiz = dialects[Math.floor(Math.random() * dialects.length)];
-  const options = [quiz.dialect];
+  // 先去重再抽样，避免候选项不足 4 个时 while 循环永远空转
+  const pool = U.shuffle([...new Set(dialects.map(d => d.dialect))].filter(v => v !== quiz.dialect));
+  const options = U.shuffle([quiz.dialect, ...pool.slice(0, 3)]);
 
-  while (options.length < 4) {
-    const random = dialects[Math.floor(Math.random() * dialects.length)];
-    if (!options.includes(random.dialect)) {
-      options.push(random.dialect);
-    }
-  }
-
-  options.sort(() => Math.random() - 0.5);
-
-  document.getElementById('quiz-question').textContent = `"${quiz.phrase}"用${dialectCityNames[city]}话怎么说？`;
+  document.getElementById('quiz-question').textContent = `"${quiz.phrase}"用${D.dialectCityNames[city]}话怎么说？`;
   document.getElementById('quiz-options').innerHTML = options.map(opt => `
-    <button class="quiz-option" onclick="checkQuizAnswer('${opt}', '${quiz.dialect}')">${opt}</button>
+    <button class="quiz-option" type="button" data-answer="${U.escapeHtml(opt)}">${U.escapeHtml(opt)}</button>
   `).join('');
+  document.getElementById('quiz-options').querySelectorAll('.quiz-option').forEach(btn => {
+    btn.addEventListener('click', () => checkQuizAnswer(btn.dataset.answer, quiz.dialect));
+  });
   document.getElementById('quiz-result').style.display = 'none';
 }
 
@@ -1377,14 +1151,14 @@ function checkQuizAnswer(selected, correct) {
   const result = document.getElementById('quiz-result');
   result.style.display = 'block';
   if (selected === correct) {
-    result.innerHTML = `<span class="quiz-correct">✓ 答对了！</span>`;
+    result.innerHTML = `<span class="quiz-correct">${U.iconSvg('check')}答对了！</span>`;
   } else {
-    result.innerHTML = `<span class="quiz-wrong">✗ 答错了，正确答案是：${correct}</span>`;
+    result.innerHTML = `<span class="quiz-wrong">${U.iconSvg('close')}答错了，正确答案是：${U.escapeHtml(correct)}</span>`;
   }
 }
 
 // ========== 旅行记忆墙 ==========
-let travelMemories = JSON.parse(localStorage.getItem('travelMemories') || '[]');
+let travelMemories = U.readStoredJson('travelMemories', [], Array.isArray);
 
 function addMemory() {
   const title = document.getElementById('memory-title').value.trim();
@@ -1393,7 +1167,7 @@ function addMemory() {
   const text = document.getElementById('memory-text').value.trim();
 
   if (!title || !text) {
-    alert('请填写标题和感受');
+    window.showToast('请填写标题和感受', 'alert');
     return;
   }
 
@@ -1407,7 +1181,7 @@ function addMemory() {
   };
 
   travelMemories.unshift(memory);
-  localStorage.setItem('travelMemories', JSON.stringify(travelMemories));
+  U.storeJson('travelMemories', travelMemories);
 
   document.getElementById('memory-title').value = '';
   document.getElementById('memory-location').value = '';
@@ -1419,7 +1193,7 @@ function addMemory() {
 function deleteMemory(id) {
   if (confirm('确定要删除这条记忆吗？')) {
     travelMemories = travelMemories.filter(m => m.id !== id);
-    localStorage.setItem('travelMemories', JSON.stringify(travelMemories));
+    U.storeJson('travelMemories', travelMemories);
     renderMemories();
   }
 }
@@ -1437,24 +1211,24 @@ function renderMemories() {
   timeline.style.display = 'block';
   empty.style.display = 'none';
 
-  const moodEmojis = {
-    happy: '😊',
-    excited: '🤩',
-    peaceful: '😌',
-    touched: '🥹',
-    surprised: '😲'
+  const moodIcons = {
+    happy: 'happy',
+    excited: 'excited',
+    peaceful: 'peaceful',
+    touched: 'touched',
+    surprised: 'surprised'
   };
 
   timeline.innerHTML = travelMemories.map(m => `
     <div class="memory-item">
-      <div class="memory-date">${m.date}</div>
+      <div class="memory-date">${U.escapeHtml(m.date)}</div>
       <div class="memory-content">
         <div class="memory-header">
-          <h3>${escapeHtml(m.title)}</h3>
-          <span class="memory-mood">${moodEmojis[m.mood] || '😊'}</span>
+          <h3>${U.escapeHtml(m.title)}</h3>
+          <span class="memory-mood" title="旅行心情">${U.iconSvg(moodIcons[m.mood] || 'happy')}</span>
         </div>
-        ${m.location ? `<div class="memory-location">📍 ${escapeHtml(m.location)}</div>` : ''}
-        <p class="memory-text">${escapeHtml(m.text)}</p>
+        ${m.location ? `<div class="memory-location">${U.iconSvg('pin')}<span>${U.escapeHtml(m.location)}</span></div>` : ''}
+        <p class="memory-text">${U.escapeHtml(m.text)}</p>
         <button class="memory-delete" onclick="deleteMemory(${m.id})">删除</button>
       </div>
     </div>
@@ -1462,28 +1236,9 @@ function renderMemories() {
 }
 
 // ========== 旅行天气助手 ==========
-const cityWeatherData = {
-  '北京': { temp: '15-25°C', weather: '晴转多云', tip: '早晚温差大，注意添衣', best: '9-10月' },
-  '上海': { temp: '18-26°C', weather: '多云', tip: '梅雨季备好雨具', best: '3-5月' },
-  '成都': { temp: '16-24°C', weather: '阴', tip: '潮湿多雨，带伞', best: '3-6月' },
-  '贵阳': { temp: '14-22°C', weather: '多云转小雨', tip: '天无三日晴，带伞', best: '5-9月' },
-  '广州': { temp: '22-30°C', weather: '多云', tip: '回南天注意防潮', best: '10-12月' },
-  '杭州': { temp: '16-25°C', weather: '晴', tip: '西湖边多雨带伞', best: '3-5月' },
-  '厦门': { temp: '20-28°C', weather: '晴', tip: '海边注意防晒', best: '3-5月' },
-  '重庆': { temp: '18-28°C', weather: '多云', tip: '夏季炎热注意防暑', best: '3-6月' },
-  '西安': { temp: '12-24°C', weather: '晴', tip: '春秋季多风沙', best: '3-5月' },
-  '南京': { temp: '14-24°C', weather: '多云', tip: '秋季栖霞山赏枫', best: '3-5月' },
-  '武汉': { temp: '16-28°C', weather: '晴', tip: '夏季炎热注意防暑', best: '3-5月' },
-  '长沙': { temp: '16-26°C', weather: '多云', tip: '湘菜偏辣备好肠胃药', best: '3-5月' },
-  '深圳': { temp: '22-30°C', weather: '晴转多云', tip: '全年温暖注意防晒', best: '10-12月' },
-  '青岛': { temp: '14-22°C', weather: '多云', tip: '海边早晚温差大', best: '5-9月' },
-  '三亚': { temp: '25-32°C', weather: '晴', tip: '全年可游泳带泳衣', best: '11-3月' },
-  '昆明': { temp: '15-24°C', weather: '晴', tip: '四季如春带薄外套', best: '3-5月' }
-};
-
 function checkWeather() {
   const city = document.getElementById('weather-city').value;
-  const data = cityWeatherData[city] || cityWeatherData['北京'];
+  const data = D.cityWeatherData[city] || D.cityWeatherData['北京'];
 
   document.getElementById('weather-result').style.display = 'block';
   document.getElementById('weather-city-name').textContent = city;
@@ -1494,101 +1249,21 @@ function checkWeather() {
 }
 
 // ========== 城市冷知识问答 ==========
-const cityTriviaData = {
-  '北京': [
-    { q: '故宫有多少间房间？', a: '9999间半', options: ['9999间半', '10000间', '8888间', '9999间'] },
-    { q: '北京地铁最老的线路是？', a: '1号线', options: ['1号线', '2号线', '10号线', '13号线'] },
-    { q: '烤鸭起源于哪个朝代？', a: '明朝', options: ['唐朝', '宋朝', '明朝', '清朝'] }
-  ],
-  '上海': [
-    { q: '外滩有多少栋建筑？', a: '52栋', options: ['52栋', '48栋', '56栋', '60栋'] },
-    { q: '上海地铁日客流量最高达？', a: '1000万', options: ['800万', '1000万', '1200万', '1500万'] },
-    { q: '城隍庙始建于哪一年？', a: '1403年', options: ['1403年', '1503年', '1603年', '1703年'] }
-  ],
-  '成都': [
-    { q: '成都得名于什么？', a: '一年成邑，二年成都', options: ['一年成邑，二年成都', '成都是平原', '成都人成事', '成都水好'] },
-    { q: '武侯祠纪念的是谁？', a: '诸葛亮', options: ['刘备', '诸葛亮', '关羽', '张飞'] },
-    { q: '都江堰建于哪一年？', a: '公元前256年', options: ['公元前256年', '公元前156年', '公元前356年', '公元前456年'] }
-  ],
-  '贵阳': [
-    { q: '贵阳为什么叫贵阳？', a: '位于贵山之南', options: ['位于贵山之南', '位于贵山之北', '贵阳光照好', '贵阳人多'] },
-    { q: '黄果树瀑布高多少米？', a: '77.8米', options: ['77.8米', '67.8米', '87.8米', '97.8米'] },
-    { q: '甲秀楼建于哪一年？', a: '1598年', options: ['1598年', '1698年', '1798年', '1898年'] }
-  ],
-  '广州': [
-    { q: '广州有多少年历史？', a: '2200年', options: ['2200年', '2000年', '1800年', '2500年'] },
-    { q: '五羊传说中有几只羊？', a: '5只', options: ['3只', '4只', '5只', '6只'] },
-    { q: '广州塔别名是什么？', a: '小蛮腰', options: ['小蛮腰', '大蛮腰', '细蛮腰', '粗蛮腰'] }
-  ],
-  '杭州': [
-    { q: '西湖十景不包括哪个？', a: '三潭印月', options: ['断桥残雪', '苏堤春晓', '三潭印月', '雷峰夕照'] },
-    { q: '龙井茶产于哪里？', a: '杭州', options: ['苏州', '杭州', '南京', '上海'] },
-    { q: '灵隐寺建于哪一年？', a: '326年', options: ['326年', '426年', '526年', '626年'] }
-  ],
-  '厦门': [
-    { q: '鼓浪屿面积多大？', a: '1.88平方公里', options: ['1.88平方公里', '2.88平方公里', '0.88平方公里', '3.88平方公里'] },
-    { q: '厦门大学建于哪一年？', a: '1921年', options: ['1921年', '1911年', '1931年', '1941年'] },
-    { q: '南普陀寺始建于哪一年？', a: '唐代', options: ['唐代', '宋代', '明代', '清代'] }
-  ],
-  '重庆': [
-    { q: '重庆为什么叫山城？', a: '多山', options: ['多山', '多水', '多桥', '多洞'] },
-    { q: '洪崖洞有多少层？', a: '11层', options: ['9层', '10层', '11层', '12层'] },
-    { q: '长江索道全长多少米？', a: '1166米', options: ['1066米', '1166米', '1266米', '1366米'] }
-  ],
-  '西安': [
-    { q: '兵马俑有多少个坑？', a: '3个', options: ['2个', '3个', '4个', '5个'] },
-    { q: '大雁塔建于哪一年？', a: '652年', options: ['652年', '752年', '852年', '952年'] },
-    { q: '西安城墙周长多少公里？', a: '13.7公里', options: ['11.7公里', '12.7公里', '13.7公里', '14.7公里'] }
-  ],
-  '南京': [
-    { q: '南京有多少朝古都？', a: '六朝', options: ['四朝', '五朝', '六朝', '七朝'] },
-    { q: '中山陵有多少级台阶？', a: '392级', options: ['292级', '392级', '492级', '592级'] },
-    { q: '夫子庙始建于哪一年？', a: '1034年', options: ['1034年', '1134年', '1234年', '1334年'] }
-  ],
-  '武汉': [
-    { q: '黄鹤楼始建于哪一年？', a: '223年', options: ['223年', '323年', '423年', '523年'] },
-    { q: '武汉有多少个区？', a: '13个', options: ['11个', '12个', '13个', '14个'] },
-    { q: '长江大桥全长多少米？', a: '1670米', options: ['1570米', '1670米', '1770米', '1870米'] }
-  ],
-  '长沙': [
-    { q: '橘子洲全长多少公里？', a: '5公里', options: ['3公里', '4公里', '5公里', '6公里'] },
-    { q: '岳麓书院建于哪一年？', a: '976年', options: ['976年', '1076年', '1176年', '1276年'] },
-    { q: '湖南省博有多少件文物？', a: '18万件', options: ['16万件', '17万件', '18万件', '19万件'] }
-  ],
-  '深圳': [
-    { q: '深圳经济特区成立于哪一年？', a: '1980年', options: ['1978年', '1979年', '1980年', '1981年'] },
-    { q: '深圳最高楼是多少米？', a: '599米', options: ['599米', '699米', '799米', '899米'] },
-    { q: '深圳有多少个区？', a: '9个', options: ['7个', '8个', '9个', '10个'] }
-  ],
-  '青岛': [
-    { q: '栈桥建于哪一年？', a: '1892年', options: ['1892年', '1902年', '1912年', '1922年'] },
-    { q: '青岛啤酒节在几月？', a: '8月', options: ['6月', '7月', '8月', '9月'] },
-    { q: '崂山最高峰多少米？', a: '1133米', options: ['1033米', '1133米', '1233米', '1333米'] }
-  ],
-  '三亚': [
-    { q: '天涯海角有多远？', a: '2.5公里', options: ['1.5公里', '2.5公里', '3.5公里', '4.5公里'] },
-    { q: '南山海上观音高多少米？', a: '108米', options: ['98米', '108米', '118米', '128米'] },
-    { q: '亚龙湾沙滩长多少公里？', a: '7公里', options: ['5公里', '6公里', '7公里', '8公里'] }
-  ],
-  '昆明': [
-    { q: '滇池面积多大？', a: '330平方公里', options: ['230平方公里', '330平方公里', '430平方公里', '530平方公里'] },
-    { q: '石林形成于多少年前？', a: '2.7亿年', options: ['1.7亿年', '2.7亿年', '3.7亿年', '4.7亿年'] },
-    { q: '昆明为什么叫春城？', a: '四季如春', options: ['四季如春', '春天多', '春花多', '春风多'] }
-  ]
-};
-
 function startCityTrivia() {
   const city = document.getElementById('trivia-city').value;
-  const questions = cityTriviaData[city] || [];
+  const questions = D.cityTriviaData[city] || [];
   if (questions.length === 0) return;
 
   const q = questions[Math.floor(Math.random() * questions.length)];
-  const options = [...q.options].sort(() => Math.random() - 0.5);
+  const options = U.shuffle(q.options);
 
   document.getElementById('trivia-question').textContent = q.q;
   document.getElementById('trivia-options').innerHTML = options.map(opt => `
-    <button class="trivia-option" onclick="checkTriviaAnswer('${opt}', '${q.a}')">${opt}</button>
+    <button class="trivia-option" type="button" data-answer="${U.escapeHtml(opt)}">${U.escapeHtml(opt)}</button>
   `).join('');
+  document.getElementById('trivia-options').querySelectorAll('.trivia-option').forEach(btn => {
+    btn.addEventListener('click', () => checkTriviaAnswer(btn.dataset.answer, q.a));
+  });
   document.getElementById('trivia-result').style.display = 'none';
 }
 
@@ -1596,9 +1271,9 @@ function checkTriviaAnswer(selected, correct) {
   const result = document.getElementById('trivia-result');
   result.style.display = 'block';
   if (selected === correct) {
-    result.innerHTML = `<span class="trivia-correct">✓ 答对了！</span>`;
+    result.innerHTML = `<span class="trivia-correct">${U.iconSvg('check')}答对了！</span>`;
   } else {
-    result.innerHTML = `<span class="trivia-wrong">✗ 答错了，正确答案是：${correct}</span>`;
+    result.innerHTML = `<span class="trivia-wrong">${U.iconSvg('close')}答错了，正确答案是：${U.escapeHtml(correct)}</span>`;
   }
 }
 
