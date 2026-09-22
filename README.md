@@ -1,70 +1,66 @@
-# ✈️ TripWise · AI出行随身向导
+# ✈️ TripWise · 旅行规划随身向导
 
-> 为 Trae AI 创造力大赛而作 —— 覆盖全国 52 个热门旅游城市的 AI 旅行规划助手
+> 纯前端旅行工作台 —— 路线规划、AI 顾问、预算、行李、地标、探店与旅行记忆，一个页面搞定。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![HTML5](https://img.shields.io/badge/HTML5-E34F26?logo=html5&logoColor=white)](#-技术栈)
 [![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?logo=javascript&logoColor=black)](#-技术栈)
 [![Leaflet](https://img.shields.io/badge/Leaflet-1.9.4-green)](https://leafletjs.com/)
-[![Zhipu AI](https://img.shields.io/badge/AI-智谱GLM--4--Flash-blue)](https://open.bigmodel.cn/)
 
-纯前端实现、零构建、零后端 —— 双击 `index.html` 即可运行。
+**零构建、零后端、双击 `index.html` 即可运行**。开发者可以配置自己的 AI API Key 启用实时路线生成与 AI 顾问；未配置时精选城市路线与内置功能完整可用。
 
 ---
 
 ## 📖 项目简介
 
-**TripWise** 是一款智能旅行规划 Web 应用：目的地预选下拉框覆盖全国 **52 个热门旅游城市**（按六大区域分组），精选城市秒出离线路线，其余城市由 **AI 大模型实时生成**带真实坐标的路线图；并内置 **AI 旅行顾问**，通过多轮对话按你的预算、同行人、天数等实际情况量身规划出行。
+TripWise 是一款面向中文自由行者的浏览器端旅行规划工具。目的地预选覆盖 **全国 52 个热门旅游城市**（按六大区域分组），北京、上海、成都、贵阳提供精选 **7 天离线行程**，其余城市由 AI 大模型按需生成带真实坐标的路线图。内置 AI 旅行顾问，可按预算、同行人、天数等实际情况多轮对话量身规划。
 
 ## ✨ 核心功能
 
 | 功能 | 说明 |
 |------|------|
-| 🗺️ **智能路线规划** | 52 城下拉预选（防错输）；北京/上海/成都/贵阳精选离线路线；其余城市 AI 实时生成，含地图打点、路线连线、时间线、出行贴士、模拟导航 |
-| 🤖 **AI 旅行顾问** | 多轮对话式行程规划，自动携带路线页选中城市/天数/偏好上下文；快捷提问、流式加载动画、Markdown 渲染 |
+| 🗺️ **智能路线规划** | 52 城下拉预选；北京/上海/成都/贵阳精选 7 天离线路线（按所选天数自动取用）；其余城市 AI 实时生成，含地图打点、路线连线、时间线、出行贴士、模拟导航 |
+| 🤖 **AI 旅行顾问** | 多轮对话式行程规划，自动携带路线页选中城市/天数/偏好上下文；快捷提问、流式加载、Markdown 渲染 |
 | 🧳 **AI 行李清单** | 按天气、天数、场景（海边/登山/商务/摄影）智能生成，勾选进度条实时统计 |
 | 📍 **地标打卡图鉴** | 6 城 36 个地标收集，打卡成就与进度本地持久化 |
 | 🎁 **探店盲盒** | 6 城小众好店随机抽取，翻牌动效 |
 | 📔 **旅行手账** | 旅途文字一键生成四风格手账（可爱/复古/清新/水墨） |
 | 💰 **旅行预算计算器** | 16 城真实消费分级，按人数/天数/住宿餐饮档次估算总预算与费用占比条形图，附省钱贴士 |
-| 🗣️ **方言课堂** | 10 城常用方言短句（含拼音、释义、例句）+ 随机小测试，和当地人更亲近 |
-| 📸 **旅行记忆墙** | 时间线式记录旅途瞬间（标题/地点/心情/正文），localStorage 本地持久化，内容自动转义防注入 |
-| 🌤️ **天气助手** | 16 城季节气候参考与穿衣建议，行前心里有数 |
+| 🗣️ **方言课堂** | 10 城常用方言短句（含拼音、释义、例句）+ 随机小测试 |
+| 📸 **旅行记忆墙** | 时间线式记录旅途瞬间，localStorage 本地持久化，内容自动转义防注入 |
+| 🌤️ **天气助手** | 16 城季节气候参考与穿衣建议 |
 | 🎯 **城市冷知识** | 16 城趣味问答题库，出发前先了解这座城市 |
 
 ## 🚀 快速开始
-
-### 1. 获取代码
 
 ```bash
 git clone https://github.com/HanJiang-GuiYang/TripWise.git
 cd TripWise
 ```
 
-### 2. 配置 AI 密钥（一次性）
+直接用浏览器打开 `index.html` 即可。推荐用 `python -m http.server 8000` 或 VS Code Live Server，避免部分浏览器对 file:// 的 CORS 限制。
+
+### 配置 AI（可选）
 
 ```bash
-cp config.example.js config.js   # Windows: copy config.example.js config.js
+copy config.example.js config.js    # Windows
+cp config.example.js config.js      # macOS / Linux
 ```
 
-打开 `config.js`，填入你的免费 API Key：
+打开 `config.js` 填入 API Key：
 
-- **智谱 AI（默认，推荐）**：注册 [open.bigmodel.cn](https://open.bigmodel.cn)（手机号+实名认证）→ 控制台「API Keys」→ 新建并复制。`glm-4-flash` **永久免费**
-- **硅基流动（备选）**：注册 [cloud.siliconflow.cn](https://cloud.siliconflow.cn) → 账户管理 → API 密钥，注册送 2000 万 token
+- **智谱 AI（推荐）**：[open.bigmodel.cn](https://open.bigmodel.cn) 注册后控制台新建 API Key，`glm-4-flash` 永久免费
+- **硅基流动（备选）**：[cloud.siliconflow.cn](https://cloud.siliconflow.cn) 注册送 2000 万 token
 
-> 🔒 `config.js` 已被 `.gitignore` 忽略，密钥只保存在你本地浏览器直连官方 API，不经过任何第三方服务器。
+> 🔒 `config.js` 已被 `.gitignore` 忽略，密钥只保存在本地浏览器直连官方 API，不经过任何服务器。
 
-### 3. 运行
-
-直接用浏览器打开 `index.html`（或 `python -m http.server 8000` 后访问 `http://localhost:8000`）。
-
-未配置密钥时应用仍可完整体验：精选城市路线、行李清单、地标打卡、盲盒、手账、预算计算器、方言课堂、记忆墙、天气助手、城市冷知识；AI 功能会给出友好引导。
+未配置时应用完整可用：精选城市路线、行李清单、地标打卡、盲盒、手账、预算计算器、方言课堂、记忆墙、天气助手、城市冷知识。
 
 ## 🛠️ 技术栈
 
-- **前端**：原生 HTML / CSS / JavaScript（无框架、无构建工具）
-- **地图**：[Leaflet 1.9.4](https://leafletjs.com/) + 高德瓦片（国内加载快）
-- **AI**：智谱 GLM-4-Flash / 硅基流动（OpenAI 兼容 Chat Completions 协议，浏览器 CORS 直连）
+- **前端**：原生 HTML / CSS / JavaScript（IIFE 全局命名空间，无框架、无构建工具、零依赖）
+- **地图**：[Leaflet 1.9.4](https://leafletjs.com/) + 高德瓦片（GCJ-02 火星坐标系，国内加载快）
+- **AI**：智谱 GLM-4-Flash / 硅基流动，OpenAI 兼容 Chat Completions 协议，浏览器 CORS 直连
 - **存储**：localStorage（打卡进度、AI 配置说明见 `config.js`）
 
 ## 📁 目录结构
@@ -72,27 +68,24 @@ cp config.example.js config.js   # Windows: copy config.example.js config.js
 ```
 TripWise/
 ├── index.html          # 页面入口（11 大功能模块）
-├── app.js              # 全部业务逻辑（城市数据/路线生成/聊天/地图/预算/方言/记忆墙等）
-├── style.css           # 紫粉渐变主题样式
-├── config.js           # ★ AI 配置中心（本地私有，不入库）
-├── config.example.js   # 配置模板（入库）
+├── app.js              # 业务逻辑：AI 路线生成、地图渲染、预算、方言、记忆墙等
+├── data.js             # 52 城市与 4 城 7 日离线行程数据（GCJ-02 坐标）
+├── v2.js               # UI 层：标签页切换、偏好恢复、深色模式、英雄图加载
+├── v2.css              # Apple 风格样式
+├── style.css           # 旧版样式（兼容保留）
+├── icons.js            # Emoji → SVG 图标映射
+├── utils.js            # 通用工具函数（存储、转义、随机打乱等）
+├── config.example.js   # AI 配置模板（入库）
+├── assets/             # 静态资源（背景图、版权声明）
+├── DESIGN.md           # 设计说明
+├── PRODUCT.md          # 产品定位
 ├── README.md
 └── LICENSE
 ```
 
-## ⚙️ 配置项说明（config.js）
-
-| 字段 | 说明 | 默认值 |
-|------|------|--------|
-| `provider` | 模型提供商 `zhipu` / `siliconflow` | `zhipu` |
-| `apiKey` | 平台 API Key | — |
-| `models` | 各提供商模型名，可换平台支持的任意模型 | `glm-4-flash` |
-| `temperature` | 随机性 0~1 | `0.8` |
-| `maxTokens` | 单次回复最大长度 | `1500` |
-
 ## 🧠 AI 路线生成原理
 
-精选城市直接渲染内置路线；其余城市向大模型发送结构化提示词，要求返回
+精选城市直接渲染内置 7 日路线；其余城市向大模型发送结构化提示词，要求返回：
 
 ```json
 [{"time":"09:00","title":"兵马俑","lat":34.38,"lng":109.27,"icon":"🏛️","transport":"旅游专线"}]
@@ -100,23 +93,21 @@ TripWise/
 
 前端解析后校验坐标（偏离城市中心自动修正回市区），复用统一渲染管线；解析失败降级为纯文本展示，保证永不白屏。
 
-## 🤝 AI 协助开发声明
+## 🤝 开发方式说明
 
-本项目由开发者独立完成产品定义、需求决策与最终验收，并在开发过程中使用 **Trae AI 编程助手** 协助完成了部分工程工作，包括但不限于：
+TripWise 由 **HanJiang-GuiYang** 独立完成产品定义、需求决策与最终验收，**Trae AI 编程助手** 作为协作方参与工程实现、问题排查与数据整理。AI 深度参与的提交会以 `Co-authored-by: Trae AI` 署名。
 
-- 界面与交互的代码实现、前端架构重构（v2 版本）
-- Bug 排查与修复（如首页配图加载、地图坐标偏移等）
-- 离线城市路线数据的扩充与景点坐标核对
-- 文档与说明文字的整理
+协作分工大致如下：
 
-所有 AI 生成或辅助生成的代码与数据，均经开发者逐一审阅、调试与确认；项目的产品方向、功能取舍及最终质量由开发者负责。提交记录中以 `Co-authored-by: Trae AI` 标注 AI 深度参与的提交。
+| 事项 | 主要负责方 |
+|------|-----------|
+| 产品方向、功能取舍、验收 | HanJiang-GuiYang |
+| 界面与交互实现、架构重构、Bug 修复 | Trae AI 编程助手 |
+| 离线城市数据扩充、景点坐标核对 | 双方协作（AI 查询 + 开发者确认） |
+| 文档、技术说明 | 双方协作 |
 
-项目所用第三方资源（地图瓦片、字体、图片等）版权归原作者所有，详见 [assets/ATTRIBUTION.md](assets/ATTRIBUTION.md)。
+项目所有代码与数据均经开发者审阅、调试后合入；第三方资源（地图瓦片、图片等）版权归原作者所有，详见 [assets/ATTRIBUTION.md](assets/ATTRIBUTION.md)。
 
 ## 📝 开源协议
 
 [MIT](LICENSE) © 2026 HanJiang-GuiYang
-
----
-
-<p align="center">Made with ❤️ for Trae AI 创造力大赛</p>
