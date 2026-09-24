@@ -1,0 +1,1 @@
+window.TRIPWISE_CONFIG={provider:'zhipu',apiKey:'7fe2e77773c44e17affc27537593c6c3.vMUyWNS1DHow2wzn',models:{zhipu:'glm-4-flash',siliconflow:'Qwen/Qwen2.5-7B-Instruct'},temperature:0.8,maxTokens:1500};
