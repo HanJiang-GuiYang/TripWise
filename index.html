@@ -127,6 +127,14 @@
         <button class="btn btn-primary" id="route-gen-btn" onclick="generateRoute()">生成路线</button>
       </div>
       <p class="route-hint">北京、上海、成都、贵阳可离线使用；其他城市需要在 <code>config.js</code> 配置旅行顾问。</p>
+      <div class="city-preview" id="city-preview" hidden aria-live="polite">
+        <img class="city-preview-image" id="city-preview-image" src="assets/hero-lake.jpg" alt="">
+        <div class="city-preview-shade"></div>
+        <div class="city-preview-label">
+          <span>目的地风光</span>
+          <strong id="city-preview-caption"></strong>
+        </div>
+      </div>
       <div class="route-result" id="route-result" style="display:none;">
         <div class="route-layout">
           <div class="route-map-panel" id="route-map-panel">
@@ -563,6 +571,7 @@
   <div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="true"></div>
   <script src="icons.js"></script>
   <script src="data.js"></script>
+  <script src="spot-photos.js"></script>
   <script src="utils.js"></script>
   <!-- Leaflet 改为异步加载，不阻塞首屏；renderRouteMap 会 await window.leafletReady -->
   <script>

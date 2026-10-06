@@ -377,6 +377,24 @@ button { letter-spacing: 0; }
 
 .route-hint { margin: 14px 0 0; color: var(--text-light); font-size: 13px; }
 .route-hint code { color: inherit; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+
+/* 路线页：选中城市后的目的地风光预览条（沿用首页 hero 的视觉语言） */
+.city-preview {
+  position: relative;
+  height: clamp(300px, 42vw, 480px);
+  margin: 16px 0 0;
+  overflow: hidden;
+  border-radius: 16px;
+  background: #28463e;
+  isolation: isolate;
+}
+.city-preview[hidden] { display: none; }
+.city-preview-image, .city-preview-shade { position: absolute; inset: 0; width: 100%; height: 100%; }
+.city-preview-image { z-index: -2; object-fit: cover; object-position: center 56%; }
+.city-preview-shade { z-index: -1; background: linear-gradient(90deg, rgba(7, 18, 15, .66) 0%, rgba(7, 18, 15, .26) 56%, rgba(7, 18, 15, .1) 100%); }
+.city-preview-label { position: absolute; left: clamp(20px, 4vw, 40px); bottom: clamp(18px, 3.5vw, 32px); color: #fff; }
+.city-preview-label span { display: block; color: rgba(255,255,255,.68); font-size: 13px; }
+.city-preview-label strong { display: block; margin-top: 6px; font-size: clamp(22px, 3.2vw, 32px); letter-spacing: -.01em; }
 .route-result { margin-top: 36px; }
 .route-layout { gap: 28px; }
 .route-map-panel, .route-info-panel { border-radius: 12px; background: var(--surface-raised); box-shadow: var(--shadow); }
@@ -386,6 +404,12 @@ button { letter-spacing: 0; }
 .summary-item, .stat-item, .weather-item { border-radius: 0; background: var(--surface-raised); }
 .timeline-item { border-left: 1px solid var(--border); border-radius: 0; background: transparent; box-shadow: none; }
 .timeline-item.active { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 8%, transparent); }
+
+/* 路线景点照片 - 深色模式 shimmer 适配 */
+html[data-theme="dark"] .place-photo-slot.is-loading {
+  background: linear-gradient(90deg, var(--bg) 25%, var(--surface-muted) 50%, var(--bg) 75%);
+  background-size: 200% 100%;
+}
 .route-day-heading { margin: 26px 0 12px; font-size: 15px; font-weight: 680; letter-spacing: .02em; color: var(--text); }
 .route-day-heading:first-child { margin-top: 0; }
 .route-day-notice { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-muted); color: var(--text-light); font-size: 13px; }

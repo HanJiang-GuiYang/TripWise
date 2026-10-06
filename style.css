@@ -294,6 +294,42 @@ body {
   line-height: 1.4;
 }
 
+/* 路线景点真实照片（Wikipedia/Wikimedia，懒加载内嵌横幅图） */
+.place-photo-slot {
+  margin: 0.5rem 0;
+  overflow: hidden;
+  border-radius: 10px;
+}
+
+.place-photo-slot.is-loading {
+  min-height: 120px;
+  background: linear-gradient(90deg, var(--bg) 25%, var(--surface-muted) 50%, var(--bg) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.place-photo-slot.is-failed {
+  display: none;
+}
+
+.place-photo-slot img {
+  width: 100%;
+  max-height: 200px;
+  object-fit: cover;
+  border-radius: 10px;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+.place-photo-slot img.loaded {
+  opacity: 1;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
 .timeline-nav-btn {
   margin-top: 0.5rem;
   padding: 0.3rem 0.6rem;

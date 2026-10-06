@@ -311,6 +311,7 @@ function showRouteResult(dest, days, type, routes) {
       <span class="time-badge">${U.escapeHtml(route.time)}</span>
       <h4><button class="timeline-place-btn" type="button" onclick="focusOnMarker(${idx})">${U.iconFrom(route.icon)}<span>${U.escapeHtml(route.title)}</span></button></h4>
       <p>${U.escapeHtml(route.desc)}</p>
+      <div class="place-photo-slot" data-place="${U.escapeHtml(route.title)}" data-city="${U.escapeHtml(dest)}"></div>
       ${route.transport ? `<div class="route-transport">${U.iconSvg('train')}<span>${U.escapeHtml(route.transport)}</span></div>` : ''}
       <button class="timeline-nav-btn" onclick="event.stopPropagation();navigateTo(${idx})">${U.iconSvg('navigation')}<span>导航到这里</span></button>
     </div>`).join('');
@@ -318,6 +319,9 @@ function showRouteResult(dest, days, type, routes) {
   }).join('');
 
   document.getElementById('route-timeline').innerHTML = timelineHtml;
+
+  // 挂载景点真实照片（懒加载 Wikipedia/Wikimedia 图片，失败时优雅隐藏）
+  window.TripWisePlacePhotos?.mount(document.getElementById('route-timeline'));
 
   renderRouteTips(dest, routes);
 }
@@ -1285,3 +1289,164 @@ updateAiStatus();
 renderDialects();
 startDialectQuiz();
 renderMemories();
+
+// ========== 路线景点真实照片模块 ==========
+// 从 Wikipedia/Wikimedia Commons 获取景点真实照片，内嵌在时间线卡片中
+// 特性：三级查询回退、IntersectionObserver 懒加载、并发上限 3、URL 双层缓存、失败优雅隐藏
+window.TripWisePlacePhotos = (function () {
+  'use strict';
+
+  const CACHE_PREFIX = 'tripwise-place-photo:';
+  const CACHE_MAX = 200;
+  const CONCURRENCY = 3;
+  const FETCH_TIMEOUT = 8000;
+  const WIKI_COOLDOWN_MS = 5 * 60 * 1000;
+
+  const sessionCache = new Map(); // key -> {url,width,height} | null
+  let wikiCooldownUntil = 0;
+  let consecutiveFails = 0;
+
+  // —— localStorage 持久化（只存 URL 元数据，不存 dataUrl，控制配额占用）——
+  function readCache(key) {
+    try {
+      const raw = localStorage.getItem(CACHE_PREFIX + key);
+      if (!raw) return undefined;
+      return JSON.parse(raw).v; // 可能是 null（已确认无图）
+    } catch (_) { return undefined; }
+  }
+
+  function writeCache(key, value) {
+    try {
+      localStorage.setItem(CACHE_PREFIX + key, JSON.stringify({ t: Date.now(), v: value }));
+      const keys = Object.keys(localStorage).filter(k => k.startsWith(CACHE_PREFIX));
+      if (keys.length > CACHE_MAX) {
+        keys.sort((a, b) => (JSON.parse(localStorage.getItem(a)).t || 0) - (JSON.parse(localStorage.getItem(b)).t || 0));
+        keys.slice(0, keys.length - CACHE_MAX).forEach(k => localStorage.removeItem(k));
+      }
+    } catch (_) { /* 配额满则放弃缓存 */ }
+  }
+
+  // —— 并发队列 ——
+  const queue = [];
+  let inflight = 0;
+  function schedule(task) {
+    queue.push(task);
+    pump();
+  }
+  function pump() {
+    while (inflight < CONCURRENCY && queue.length) {
+      inflight++;
+      queue.shift()().finally(() => { inflight--; pump(); });
+    }
+  }
+
+  function fetchWithTimeout(url, ms) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), ms);
+    return fetch(url, { signal: controller.signal }).finally(() => clearTimeout(timer));
+  }
+
+  // —— Pixabay API（国内可访问的真实照片库，key 在 config.js 的 pixabayApiKey 配置）——
+  async function fetchPixabayPhoto(city, place, apiKey) {
+    const queries = [place, `${city} ${place}`];
+    for (const q of queries) {
+      const url = `https://pixabay.com/api/?key=${encodeURIComponent(apiKey)}&q=${encodeURIComponent(q)}&image_type=photo&orientation=horizontal&safesearch=true&per_page=3&lang=zh`;
+      try {
+        const res = await fetchWithTimeout(url, FETCH_TIMEOUT);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const hit = data.hits?.[0];
+        if (hit?.webformatURL) {
+          consecutiveFails = 0;
+          return { url: hit.webformatURL, width: hit.webformatWidth, height: hit.webformatHeight };
+        }
+        // 有响应但无结果，尝试下一个查询词
+      } catch (_) {
+        consecutiveFails++;
+        if (consecutiveFails >= 2) wikiCooldownUntil = Date.now() + WIKI_COOLDOWN_MS;
+      }
+    }
+    return null;
+  }
+
+  // —— Wikipedia API 查询（zh 三级回退；中国大陆不可达，作海外兜底）——
+  async function fetchWikiPhoto(city, place) {
+    const queries = [place, `${place} ${city}`, `${city} ${place}`];
+    for (const q of queries) {
+      const url = `https://zh.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(q)}&gsrlimit=1&prop=pageimages&pithumbsize=640&format=json&origin=*`;
+      try {
+        const res = await fetchWithTimeout(url, FETCH_TIMEOUT);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const page = Object.values(data.query?.pages || {})[0];
+        if (page?.thumbnail?.source) {
+          consecutiveFails = 0;
+          return { url: page.thumbnail.source, width: page.thumbnail.width, height: page.thumbnail.height };
+        }
+        // 有词条但无图，尝试下一个查询词
+      } catch (_) {
+        consecutiveFails++;
+        if (consecutiveFails >= 2) wikiCooldownUntil = Date.now() + WIKI_COOLDOWN_MS;
+      }
+    }
+    return null;
+  }
+
+  // 优先 Pixabay（需配置 key），未配置时回退 Wikipedia
+  function fetchPlacePhoto(city, place) {
+    if (Date.now() < wikiCooldownUntil) return Promise.resolve(null);
+    const pixabayKey = window.TRIPWISE_CONFIG?.pixabayApiKey?.trim();
+    return pixabayKey ? fetchPixabayPhoto(city, place, pixabayKey) : fetchWikiPhoto(city, place);
+  }
+
+  function applyResult(slotEl, result) {
+    slotEl.classList.remove('is-loading');
+    if (!result || !result.url) {
+      slotEl.classList.add('is-failed'); // CSS 中 display:none，不影响卡片布局
+      return;
+    }
+    const img = document.createElement('img');
+    img.src = result.url;
+    img.alt = `${slotEl.dataset.place}实景照片`;
+    img.loading = 'lazy';
+    img.onload = () => img.classList.add('loaded');
+    img.onerror = () => slotEl.classList.add('is-failed');
+    slotEl.appendChild(img);
+  }
+
+  async function loadPhoto(slotEl) {
+    const place = slotEl.dataset.place;
+    const city = slotEl.dataset.city;
+
+    // 本地预下载的真实照片优先（assets/spots/，无需任何 API）
+    const localPath = window.TRIPWISE_SPOT_PHOTOS?.[city]?.[place];
+    if (localPath) { applyResult(slotEl, { url: localPath }); return; }
+
+    const key = `${city}#${place}`;
+
+    if (sessionCache.has(key)) { applyResult(slotEl, sessionCache.get(key)); return; }
+    const stored = readCache(key);
+    if (stored !== undefined) {
+      sessionCache.set(key, stored);
+      applyResult(slotEl, stored);
+      return;
+    }
+
+    slotEl.classList.add('is-loading');
+    schedule(async () => {
+      const result = await fetchWikiPhoto(city, place);
+      sessionCache.set(key, result);
+      writeCache(key, result);
+      applyResult(slotEl, result);
+    });
+  }
+
+  // —— 挂载入口：照片多为本地小文件，挂载即加载；img 的 loading="lazy" 负责视口外延迟解码 ——
+  // （此前用 IntersectionObserver，但空槽高度为 0 时 threshold 触发不稳定，已弃用）
+  function mount(timelineEl) {
+    if (!timelineEl) return;
+    timelineEl.querySelectorAll('.place-photo-slot').forEach(slot => loadPhoto(slot));
+  }
+
+  return { mount };
+})();

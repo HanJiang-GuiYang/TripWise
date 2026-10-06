@@ -455,6 +455,46 @@
     if (control.placeholder) control.placeholder = control.placeholder.replace(/\.\.\./g, '…');
   });
 
+  // —— 路线页：选中城市后展示目的地风光（复用首页 hero 的生成/轮询/缓存机制） ——
+  const cityPreview = document.getElementById('city-preview');
+  const cityPreviewImg = document.getElementById('city-preview-image');
+  const cityPreviewCaption = document.getElementById('city-preview-caption');
+  let cityPreviewToken = 0;
+
+  function renderCityPreview(city) {
+    if (!cityPreview || !cityPreviewImg) return;
+    const inspiration = city ? window.TripWiseData?.cityInspiration?.[city] : null;
+    if (!inspiration) { cityPreview.hidden = true; return; }
+    cityPreview.hidden = false;
+    if (cityPreviewCaption) cityPreviewCaption.textContent = `${city} · ${inspiration.phrase}`;
+    if (cityPreviewImg.dataset.city === city) return;
+    cityPreviewImg.dataset.city = city;
+    cityPreviewImg.alt = `${city}${inspiration.phrase}旅行风景`;
+
+    // 命中缓存：直接上屏
+    const cached = readHeroCache(city);
+    if (cached) { cityPreviewImg.src = cached; return; }
+
+    // 未命中：轮询等真图就绪后淡入，期间保留当前画面，不闪占位图
+    const token = ++cityPreviewToken;
+    const url = inspirationImageUrl(inspiration.prompt);
+    cityPreviewImg.style.transition = 'opacity .45s ease';
+    cityPreviewImg.style.opacity = '0';
+    resolveHeroImage(url).then((ready) => {
+      if (token !== cityPreviewToken || !ready) { cityPreviewImg.style.opacity = '1'; return; }
+      cityPreviewImg.onload = () => { cityPreviewImg.style.opacity = '1'; };
+      cityPreviewImg.src = ready.dataUrl || ready.directUrl;
+      if (ready.dataUrl) writeHeroCache(city, ready.dataUrl);
+    });
+  }
+
+  document.getElementById('route-dest')?.addEventListener('change', (event) => {
+    renderCityPreview(event.target.value);
+  });
+
   applyPreferences();
+  // 恢复上次偏好城市时同步显示预览
+  const savedDest = document.getElementById('route-dest');
+  if (savedDest?.value) renderCityPreview(savedDest.value);
   refreshIcons();
 }());
