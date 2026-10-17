@@ -1,0 +1,151 @@
+/* ============================================================
+   TripWise 启动动画（灵感来自 Apple 设备激活时的手写笔迹动画）
+   笔迹逐条"书写"出 TripWise，笔尖带光晕与墨点粒子，收尾花饰后淡出。
+   ============================================================ */
+
+.tw-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* 独立于应用主题的深色电影感背景 */
+  background:
+    radial-gradient(120% 90% at 50% 28%, #134046 0%, #0a2226 46%, #050c0d 100%);
+  /* 入场淡显用纯 CSS（不依赖 JS/rAF，避免后台标签页节流导致遮罩透明卡死）；
+     不能用 fill-mode both/forwards，否则动画结束后 opacity 被钉死为 1，会盖掉淡出过渡 */
+  animation: tw-splash-in 0.5s ease;
+  transition: opacity 0.7s ease;
+}
+
+@keyframes tw-splash-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* 淡出态：整个遮罩层透明化并放行点击 */
+.tw-splash--out {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* 背景粒子画布（慢速漂浮的墨尘 + 书写时迸溅的火花） */
+.tw-splash-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* 三枚大光斑营造景深 */
+.tw-splash-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(70px);
+  opacity: 0.45;
+  pointer-events: none;
+  animation: tw-drift 16s ease-in-out infinite alternate;
+}
+.tw-splash-orb--a { width: 44vmin; height: 44vmin; left: -8vmin; top: -6vmin; background: #1d6a72; }
+.tw-splash-orb--b { width: 36vmin; height: 36vmin; right: -6vmin; top: 18vmin; background: #8a6a24; animation-duration: 20s; animation-delay: -6s; }
+.tw-splash-orb--c { width: 30vmin; height: 30vmin; left: 24vmin; bottom: -10vmin; background: #2a4d63; animation-duration: 24s; animation-delay: -12s; }
+
+@keyframes tw-drift {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to   { transform: translate3d(6vmin, -4vmin, 0) scale(1.15); }
+}
+
+/* 中央舞台 */
+.tw-splash-stage {
+  position: relative;
+  text-align: center;
+  padding: 0 4vw;
+}
+
+.tw-splash-svg {
+  width: min(82vw, 760px);
+  height: auto;
+  overflow: visible;
+  /* 墨迹发光：合并到组上，避免逐条路径重复滤镜开销 */
+  filter: drop-shadow(0 0 6px rgba(112, 198, 203, 0.5))
+          drop-shadow(0 0 22px rgba(213, 155, 50, 0.22));
+}
+
+/* 完成书写后 logo 轻微"落定"回弹 */
+.tw-splash--settled .tw-splash-svg {
+  animation: tw-settle 0.55s cubic-bezier(0.2, 0.9, 0.25, 1.2);
+}
+@keyframes tw-settle {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.035); }
+  100% { transform: scale(1); }
+}
+
+/* 笔迹本体 */
+.tw-ink {
+  fill: none;
+  stroke: url(#tw-ink-grad);
+  stroke-width: 12;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.tw-ink--flourish {
+  stroke-width: 5;
+  opacity: 0.8;
+}
+
+/* 笔尖 */
+.tw-pen-core {
+  fill: #eafffb;
+}
+.tw-pen-halo {
+  fill: rgba(112, 198, 203, 0.35);
+}
+
+/* 标语 */
+.tw-splash-tagline {
+  margin-top: 2.4rem;
+  font-size: clamp(0.95rem, 2.4vw, 1.3rem);
+  letter-spacing: 0.42em;
+  text-indent: 0.42em; /* 抵消末字符间距，保持居中 */
+  color: #cfe8e4;
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.9s ease 0.1s, transform 0.9s ease 0.1s;
+}
+.tw-splash--done .tw-splash-tagline {
+  opacity: 1;
+  transform: none;
+}
+
+/* 跳过提示：尽早出现，让用户知道可以跳过 */
+.tw-splash-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 8vh;
+  transform: translateX(-50%);
+  font-size: 0.8rem;
+  letter-spacing: 0.28em;
+  text-indent: 0.28em;
+  color: rgba(207, 232, 228, 0.4);
+  opacity: 0;
+  animation: tw-hint-in 1.2s ease 0.9s forwards;
+  pointer-events: none;
+}
+@keyframes tw-hint-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* 降低动态偏好：直接静态呈现，无漂浮光斑 */
+@media (prefers-reduced-motion: reduce) {
+  .tw-splash-orb,
+  .tw-splash-hint {
+    animation: none;
+  }
+  .tw-splash--settled .tw-splash-svg {
+    animation: none;
+  }
+}

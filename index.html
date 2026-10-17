@@ -22,11 +22,25 @@
   <title>TripWise · 把旅行过成自己的版本</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="v2.css">
+  <link rel="stylesheet" href="splash.css">
   <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/leaflet/1.9.4/leaflet.min.css"
         integrity="sha384-c6Rcwz4e4CITMbu/NBmnNS8yN2sC3cUElMEMfP3vqqKFp7GOYaaBBCqmaWBjmkjb"
         crossorigin="anonymous" />
 </head>
 <body>
+
+  <!-- 启动动画：笔迹逐条写出 TripWise（splash.js 驱动，可点击/按键跳过） -->
+  <div id="tripwise-splash" class="tw-splash" aria-hidden="true">
+    <canvas id="tw-splash-particles" class="tw-splash-canvas"></canvas>
+    <span class="tw-splash-orb tw-splash-orb--a"></span>
+    <span class="tw-splash-orb tw-splash-orb--b"></span>
+    <span class="tw-splash-orb tw-splash-orb--c"></span>
+    <div class="tw-splash-stage">
+      <svg id="tw-splash-svg" class="tw-splash-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+      <p class="tw-splash-tagline">把旅行过成自己的版本</p>
+    </div>
+    <p class="tw-splash-hint">轻触任意处跳过</p>
+  </div>
 
   <a class="skip-link" href="#main-content">跳到主要内容</a>
 
@@ -679,5 +693,6 @@
   <script src="config.js"></script>
   <script src="app.js"></script>
   <script src="v2.js"></script>
+  <script src="splash.js"></script>
 </body>
 </html>
