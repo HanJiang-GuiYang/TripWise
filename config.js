@@ -1,1 +1,1 @@
-window.TRIPWISE_CONFIG={provider:'deepseek',apiKey:'',proxyPrefix:'',models:{deepseek:'deepseek-chat',zhipu:'glm-4-flash',siliconflow:'Qwen/Qwen2.5-7B-Instruct'},temperature:0.8,maxTokens:1500,pixabayApiKey:''};
+window.TRIPWISE_CONFIG={provider:'deepseek',apiKey:'sk-60c7e1d77c254d39aafa11127abf6a2e',proxyPrefix:'',models:{deepseek:'deepseek-chat',zhipu:'glm-4-flash',siliconflow:'Qwen/Qwen2.5-7B-Instruct'},temperature:0.8,maxTokens:1500,pixabayApiKey:''};
