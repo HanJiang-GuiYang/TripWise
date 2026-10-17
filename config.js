@@ -1,1 +1,1 @@
-window.TRIPWISE_CONFIG={provider:'modelscope',apiKey:'',proxyPrefix:'',models:{modelscope:'deepseek-ai/DeepSeek-V4-Flash',deepseek:'deepseek-chat',zhipu:'glm-4-flash',siliconflow:'Qwen/Qwen2.5-7B-Instruct'},temperature:0.8,maxTokens:1500,pixabayApiKey:''};
+window.TRIPWISE_CONFIG={provider:'modelscope',apiKey:'ms-6e716a62-760b-45e0-81fe-8532d22e06db',proxyPrefix:'',models:{modelscope:'Qwen/Qwen3.5-35B-A3B',deepseek:'deepseek-chat',zhipu:'glm-4-flash',siliconflow:'Qwen/Qwen2.5-7B-Instruct'},temperature:0.8,maxTokens:1500,pixabayApiKey:''};

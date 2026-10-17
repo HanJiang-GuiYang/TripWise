@@ -25,7 +25,7 @@ window.TRIPWISE_CONFIG = {
 
   // 各提供商使用的模型名
   models: {
-    modelscope: 'deepseek-ai/DeepSeek-V4-Flash',
+    modelscope: 'Qwen/Qwen3.5-35B-A3B',
     deepseek: 'deepseek-chat',
     zhipu: 'glm-4-flash',
     siliconflow: 'Qwen/Qwen2.5-7B-Instruct'
