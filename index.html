@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+  <!-- 阻塞式主题初始化：在样式表生效前设置 data-theme，消除深色模式首屏闪烁（FOUC） -->
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('tripwise-theme');
+        if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = t;
+      } catch (_) {
+        document.documentElement.dataset.theme = 'light';
+      }
+    })();
+  </script>
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f5f7f6">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#101413">
+  <meta name="description" content="TripWise 是一款把路线、预算、行李和旅途日记放在一起的个性化旅行工作台。">
+  <link rel="icon" href="data:,">
+  <title>TripWise · 把旅行过成自己的版本</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="v2.css">
+  <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/leaflet/1.9.4/leaflet.min.css"
+        integrity="sha384-c6Rcwz4e4CITMbu/NBmnNS8yN2sC3cUElMEMfP3vqqKFp7GOYaaBBCqmaWBjmkjb"
+        crossorigin="anonymous" />
+</head>
+<body>
+
+  <a class="skip-link" href="#main-content">跳到主要内容</a>
+
+  <!-- 顶部导航 -->
+  <header class="header" aria-label="主导航">
+    <button class="logo" type="button" data-tab="home" aria-label="回到今日首页">
+      <span class="logo-mark" data-icon="navigation" aria-hidden="true"></span>
+      <div class="logo-text">
+        <h1>TripWise</h1>
+        <p>你的旅行，自己定义</p>
+      </div>
+    </button>
+    <nav class="nav" id="nav" aria-label="功能导航">
+      <button class="nav-btn active" data-tab="home"><span data-icon="home" aria-hidden="true"></span><span>今日</span></button>
+      <button class="nav-btn" data-tab="route"><span data-icon="map" aria-hidden="true"></span><span>路线</span></button>
+      <button class="nav-btn" data-tab="packing"><span data-icon="luggage" aria-hidden="true"></span><span>行李</span></button>
+      <button class="nav-btn" data-tab="landmarks"><span data-icon="pin-check" aria-hidden="true"></span><span>足迹</span></button>
+      <button class="nav-btn" data-tab="blindbox"><span data-icon="store" aria-hidden="true"></span><span>探店</span></button>
+      <button class="nav-btn" data-tab="journal"><span data-icon="notebook" aria-hidden="true"></span><span>手账</span></button>
+      <button class="nav-btn" data-tab="budget"><span data-icon="wallet" aria-hidden="true"></span><span>预算</span></button>
+      <button class="nav-btn" data-tab="dialect"><span data-icon="messages" aria-hidden="true"></span><span>方言</span></button>
+      <button class="nav-btn" data-tab="memory"><span data-icon="images" aria-hidden="true"></span><span>日记</span></button>
+      <button class="nav-btn" data-tab="weather"><span data-icon="cloud-sun" aria-hidden="true"></span><span>天气</span></button>
+      <button class="nav-btn" data-tab="trivia"><span data-icon="sparkles" aria-hidden="true"></span><span>发现</span></button>
+      <button class="nav-btn" data-tab="ai"><span data-icon="messages" aria-hidden="true"></span><span>顾问</span></button>
+    </nav>
+    <button class="icon-button" id="profile-btn" type="button" aria-label="我的旅行画像" title="我的旅行画像"><span data-icon="user" aria-hidden="true"></span></button>
+    <button class="icon-button theme-toggle" id="theme-toggle" type="button" aria-label="切换深色模式" title="切换外观"><span data-icon="moon" aria-hidden="true"></span></button>
+  </header>
+
+  <main class="main" id="main-content" tabindex="-1">
+
+    <!-- ========== 首页 ========== -->
+    <section class="tab-content active" id="tab-home">
+      <div class="home-intro">
+        <p id="personal-greeting" class="greeting-line">
+          <span id="greeting-period">晚上好</span>，下一站
+          <input type="text" id="next-stop-input" class="next-stop-input" list="next-stop-suggestions" placeholder="想去哪里？" autocomplete="off" aria-label="输入下一站目的地">
+          <button type="button" id="next-stop-go" class="btn btn-primary btn-sm" aria-label="确认下一站">出发</button>
+        </p>
+        <datalist id="next-stop-suggestions"></datalist>
+        <time id="today-date"></time>
+      </div>
+
+      <section class="nextstop-card" id="nextstop-card" hidden aria-live="polite" aria-label="下一站图文介绍">
+        <div class="nextstop-head">
+          <h3 id="nextstop-title"></h3>
+          <div id="nextstop-checkin" class="nextstop-checkin"></div>
+        </div>
+        <div class="nextstop-grid">
+          <article class="nextstop-cell nextstop-scenery">
+            <img id="nextstop-scenery-img" alt="城市风光" loading="lazy">
+            <h4>热门风景</h4>
+            <p id="nextstop-scenery-text"></p>
+          </article>
+          <article class="nextstop-cell">
+            <h4>特色美食</h4>
+            <ul id="nextstop-food-list" class="nextstop-list"></ul>
+          </article>
+          <article class="nextstop-cell">
+            <h4>当地文化</h4>
+            <ul id="nextstop-culture-list" class="nextstop-list"></ul>
+          </article>
+        </div>
+      </section>
+
+      <div class="hero" aria-labelledby="hero-title">
+        <img class="hero-image" id="hero-image" src="assets/hero-lake.jpg" alt="杭州西湖雨后风景" width="1800" height="1100" fetchpriority="high" onerror="this.onerror=null;this.src='assets/hero-lake.jpg';">
+        <div class="hero-shade"></div>
+        <div class="hero-content">
+          <h2 class="hero-title" id="hero-title">把旅行过成<br>自己的版本</h2>
+          <p class="hero-desc">从一条真正顺路的行程开始。路线、预算、行李和回忆，都在一个地方。</p>
+          <button class="btn btn-hero btn-large" onclick="switchTab('route')"><span>规划下一站</span><span data-icon="arrow-up-right" aria-hidden="true"></span></button>
+        </div>
+        <div class="hero-route" aria-label="推荐路线">
+          <span>本周灵感</span>
+          <strong id="featured-route-name">杭州 · 雨后西湖</strong>
+          <button type="button" id="featured-route-button" aria-label="查看推荐路线"><span data-icon="arrow-right" aria-hidden="true"></span></button>
+        </div>
+      </div>
+
+      <div class="home-section-heading">
+        <h2>从这里开始</h2>
+        <p>少一点准备焦虑，多一点临场自由。</p>
+      </div>
+      <div class="features-grid">
+        <button class="feature-card feature-wide" type="button" onclick="switchTab('route')">
+          <span data-icon="route" aria-hidden="true"></span><span><strong>设计一条顺路的行程</strong><small>52 个城市，地图与时间线同步</small></span><span data-icon="chevron-right" aria-hidden="true"></span>
+        </button>
+        <button class="feature-card" type="button" onclick="switchTab('packing')">
+          <span data-icon="luggage" aria-hidden="true"></span><span><strong>收好行李</strong><small>按天气与场景准备</small></span><span data-icon="chevron-right" aria-hidden="true"></span>
+        </button>
+        <button class="feature-card" type="button" onclick="switchTab('budget')">
+          <span data-icon="wallet" aria-hidden="true"></span><span><strong>算清预算</strong><small>住宿、交通、餐饮一眼看懂</small></span><span data-icon="chevron-right" aria-hidden="true"></span>
+        </button>
+        <button class="feature-card feature-photo" type="button" onclick="switchTab('memory')">
+          <img src="assets/memory-mountains.jpg" alt="山林之间的旅行风景" width="1200" height="800" loading="lazy">
+          <span><strong>把沿途留下来</strong><small>旅行日记与手账</small></span><span data-icon="chevron-right" aria-hidden="true"></span>
+        </button>
+      </div>
+    </section>
+
+    <!-- ========== 路线规划 ========== -->
+    <section class="tab-content" id="tab-route">
+      <div class="section-header">
+        <h2>路线规划</h2>
+        <p>选一座城市和旅行偏好，得到一条真正顺路的行程路线。</p>
+      </div>
+      <div class="route-input-group">
+        <select class="input select" id="route-dest">
+          <option value="">🌏 请选择目的地城市</option>
+        </select>
+        <select class="input select" id="route-days">
+          <option value="1">1天</option>
+          <option value="2">2天</option>
+          <option value="3" selected>3天</option>
+          <option value="5">5天</option>
+          <option value="7">7天</option>
+        </select>
+        <select class="input select" id="route-type">
+          <option value="culture">文化之旅</option>
+          <option value="food">美食之旅</option>
+          <option value="nature">自然探索</option>
+          <option value="photo">摄影打卡</option>
+        </select>
+        <button class="btn btn-primary" id="route-gen-btn" onclick="generateRoute()">生成路线</button>
+      </div>
+      <p class="route-hint">北京、上海、成都、贵阳可离线使用；其他城市需要在 <code>config.js</code> 配置旅行顾问。</p>
+      <div class="city-preview" id="city-preview" hidden aria-live="polite">
+        <img class="city-preview-image" id="city-preview-image" src="assets/hero-lake.jpg" alt="">
+        <div class="city-preview-shade"></div>
+        <div class="city-preview-label">
+          <span>目的地风光</span>
+          <strong id="city-preview-caption"></strong>
+        </div>
+      </div>
+      <div class="route-result" id="route-result" style="display:none;">
+        <div class="route-layout">
+          <div class="route-map-panel" id="route-map-panel">
+            <div class="map-toolbar">
+              <span class="map-title" id="map-title"><span data-icon="map" aria-hidden="true"></span>实时地图导航</span>
+              <button class="btn btn-outline btn-sm" id="nav-start-btn" onclick="startNavigation()" style="display:none;"><span data-icon="compass" aria-hidden="true"></span>开始导航</button>
+              <button class="btn btn-outline btn-sm" id="nav-stop-btn" onclick="stopNavigation()" style="display:none;"><span data-icon="stop" aria-hidden="true"></span>停止导航</button>
+            </div>
+            <div id="route-map"></div>
+            <div class="map-legend" id="map-legend"></div>
+            <div class="route-tips" id="route-tips"></div>
+          </div>
+          <div class="route-info-panel">
+            <div class="route-summary" id="route-summary"></div>
+            <div class="route-timeline" id="route-timeline"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== AI旅行顾问 ========== -->
+    <section class="tab-content" id="tab-ai">
+      <div class="section-header">
+        <h2>旅行顾问</h2>
+        <p>说说同行人、预算和节奏，获得更贴合你的建议。</p>
+      </div>
+      <div class="ai-status-bar" id="ai-status-bar">
+        <span id="ai-status-text"><span data-icon="loader" aria-hidden="true"></span>正在检测 AI 配置…</span>
+      </div>
+      <div class="chat-container">
+        <div class="chat-messages" id="chat-messages"></div>
+        <div class="chat-quick" id="chat-quick">
+          <button class="quick-btn" onclick="sendQuickQuestion(this)">帮我规划一条3天行程</button>
+          <button class="quick-btn" onclick="sendQuickQuestion(this)">当地有什么必吃美食？</button>
+          <button class="quick-btn" onclick="sendQuickQuestion(this)">住宿选哪个区域方便？</button>
+          <button class="quick-btn" onclick="sendQuickQuestion(this)">这趟旅行大概要多少预算？</button>
+        </div>
+        <div class="chat-input-area">
+          <textarea id="chat-input" class="textarea" rows="2" placeholder="输入你的旅行问题，如：带父母去西安3天怎么安排？（Enter 发送，Shift+Enter 换行）"></textarea>
+          <button class="btn btn-primary" id="chat-send-btn" onclick="sendChatMessage()">发送 <span data-icon="send" aria-hidden="true"></span></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== 行李清单 ========== -->
+    <section class="tab-content" id="tab-packing">
+      <div class="section-header">
+        <h2>行李清单</h2>
+        <p>智能生成你的专属行李清单</p>
+      </div>
+      <div class="packing-form">
+        <input type="text" class="input" id="packing-dest" placeholder="目的地（如：北京、三亚、东京…）">
+        <select class="input select" id="packing-weather">
+          <option value="hot">炎热（>30°C）</option>
+          <option value="warm">温暖（20-30°C）</option>
+          <option value="cool">凉爽（10-20°C）</option>
+          <option value="cold">寒冷（<10°C）</option>
+        </select>
+        <select class="input select" id="packing-days">
+          <option value="1">1-2天</option>
+          <option value="3" selected>3-5天</option>
+          <option value="7">6-7天</option>
+          <option value="14">7天以上</option>
+        </select>
+        <div class="checkbox-group">
+          <label class="checkbox-label"><input type="checkbox" value="beach" id="opt-beach"><span data-icon="umbrella" aria-hidden="true"></span>海边</label>
+          <label class="checkbox-label"><input type="checkbox" value="mountain" id="opt-mountain"><span data-icon="mountain" aria-hidden="true"></span>登山</label>
+          <label class="checkbox-label"><input type="checkbox" value="business" id="opt-business"><span data-icon="briefcase" aria-hidden="true"></span>商务</label>
+          <label class="checkbox-label"><input type="checkbox" value="photo" id="opt-photo"><span data-icon="camera" aria-hidden="true"></span>摄影</label>
+        </div>
+        <button class="btn btn-primary" onclick="generatePackingList()">生成清单</button>
+      </div>
+      <div class="packing-result" id="packing-result" style="display:none;">
+        <div class="packing-header">
+          <h3><span data-icon="list" aria-hidden="true"></span>你的行李清单</h3>
+          <div class="packing-progress">
+            <div class="progress-bar"><div class="progress-fill" id="packing-progress-fill"></div></div>
+            <span class="progress-text" id="packing-progress-text">0/0 已准备</span>
+          </div>
+        </div>
+        <div class="packing-categories" id="packing-list"></div>
+      </div>
+    </section>
+
+    <!-- ========== 地标打卡 ========== -->
+    <section class="tab-content" id="tab-landmarks">
+      <div class="section-header">
+        <h2>城市足迹</h2>
+        <p>收集每个城市的标志性打卡地标</p>
+      </div>
+      <div class="city-selector" id="city-selector"></div>
+      <div class="landmark-stats">
+        <div class="stat-item">
+          <span class="stat-number" id="stat-checked">0</span>
+          <span class="stat-label">已打卡</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-number" id="stat-total">0</span>
+          <span class="stat-label">总数</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-number" id="stat-cities">0</span>
+          <span class="stat-label">已解锁城市</span>
+        </div>
+      </div>
+      <div class="landmark-grid" id="landmark-grid"></div>
+    </section>
+
+    <!-- ========== 探店盲盒 ========== -->
+    <section class="tab-content" id="tab-blindbox">
+      <div class="section-header">
+        <h2>探店盲盒</h2>
+        <p>随机遇见一间值得绕路去的小店。</p>
+      </div>
+      <div class="blindbox-container">
+        <div class="blindbox-city">
+          <label>选择城市：</label>
+          <select class="input select" id="blindbox-city">
+            <option value="beijing">北京</option>
+            <option value="shanghai">上海</option>
+            <option value="chengdu">成都</option>
+            <option value="guangzhou">广州</option>
+            <option value="hangzhou">杭州</option>
+            <option value="xiamen">厦门</option>
+          </select>
+        </div>
+        <div class="blindbox-card" id="blindbox-card">
+          <div class="blindbox-front" id="blindbox-front">
+            <div class="blindbox-gift" data-icon="gift" aria-hidden="true"></div>
+            <p>点击开启你的专属探店推荐</p>
+          </div>
+          <div class="blindbox-reveal" id="blindbox-reveal" style="display:none;">
+            <div class="reveal-category" id="reveal-category"></div>
+            <h3 class="reveal-name" id="reveal-name"></h3>
+            <div class="reveal-rating" id="reveal-rating"></div>
+            <p class="reveal-desc" id="reveal-desc"></p>
+            <div class="reveal-tags" id="reveal-tags"></div>
+            <div class="reveal-tip" id="reveal-tip"></div>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-large" id="blindbox-btn" onclick="openBlindBox()"><span data-icon="gift" aria-hidden="true"></span>开启盲盒</button>
+      </div>
+    </section>
+
+    <!-- ========== 旅行手账 ========== -->
+    <section class="tab-content" id="tab-journal">
+      <div class="section-header">
+        <h2>旅行手账</h2>
+        <p>输入旅途文字，一键生成精美手账漫画</p>
+      </div>
+      <div class="journal-input">
+        <textarea class="textarea" id="journal-text" rows="5" placeholder="记录你的旅途故事…&#10;例如：今天去了故宫，红墙金瓦太美了！中午在附近吃了一家超好吃的炸酱面，下午在胡同里散步，遇到了可爱的猫咪…"></textarea>
+        <div class="journal-styles">
+          <button class="style-btn active" data-style="cute"><span data-icon="sparkles" aria-hidden="true"></span>可爱风</button>
+          <button class="style-btn" data-style="retro"><span data-icon="camera" aria-hidden="true"></span>复古风</button>
+          <button class="style-btn" data-style="fresh"><span data-icon="leaf" aria-hidden="true"></span>清新风</button>
+          <button class="style-btn" data-style="ink"><span data-icon="palette" aria-hidden="true"></span>水墨风</button>
+        </div>
+        <button class="btn btn-primary" onclick="generateJournal()">生成手账</button>
+      </div>
+      <div class="journal-output" id="journal-output" style="display:none;">
+        <div class="journal-page" id="journal-page">
+          <div class="journal-date" id="journal-date"></div>
+          <div class="journal-weather" id="journal-weather"></div>
+          <div class="journal-content" id="journal-content"></div>
+          <div class="journal-stickers" id="journal-stickers"></div>
+          <div class="journal-doodles" id="journal-doodles"></div>
+        </div>
+        <div class="journal-actions">
+          <button class="btn btn-outline" onclick="downloadJournal()"><span data-icon="download" aria-hidden="true"></span>保存图片</button>
+          <button class="btn btn-outline" onclick="shareJournal()"><span data-icon="share" aria-hidden="true"></span>分享</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== 预算计算器 ========== -->
+    <section class="tab-content" id="tab-budget">
+      <div class="section-header">
+        <h2>旅行预算</h2>
+        <p>智能估算你的旅行花费，让每一分钱都花在刀刃上</p>
+      </div>
+      <div class="budget-form">
+        <div class="budget-row">
+          <div class="budget-field">
+            <label>目的地</label>
+            <select class="input select" id="budget-dest">
+              <option value="北京">北京</option>
+              <option value="上海">上海</option>
+              <option value="成都">成都</option>
+              <option value="贵阳">贵阳</option>
+              <option value="广州">广州</option>
+              <option value="杭州">杭州</option>
+              <option value="厦门">厦门</option>
+              <option value="重庆">重庆</option>
+              <option value="西安">西安</option>
+              <option value="南京">南京</option>
+              <option value="武汉">武汉</option>
+              <option value="长沙">长沙</option>
+              <option value="深圳">深圳</option>
+              <option value="青岛">青岛</option>
+              <option value="三亚">三亚</option>
+              <option value="昆明">昆明</option>
+            </select>
+          </div>
+          <div class="budget-field">
+            <label>出行人数</label>
+            <select class="input select" id="budget-people">
+              <option value="1">1人</option>
+              <option value="2" selected>2人</option>
+              <option value="3">3人</option>
+              <option value="4">4人</option>
+              <option value="5">5人以上</option>
+            </select>
+          </div>
+          <div class="budget-field">
+            <label>出行天数</label>
+            <select class="input select" id="budget-days">
+              <option value="1">1天</option>
+              <option value="2">2天</option>
+              <option value="3" selected>3天</option>
+              <option value="5">5天</option>
+              <option value="7">7天</option>
+            </select>
+          </div>
+        </div>
+        <div class="budget-row">
+          <div class="budget-field">
+            <label>住宿标准</label>
+            <select class="input select" id="budget-hotel">
+              <option value="budget">经济型（100-200/晚）</option>
+              <option value="comfort" selected>舒适型（200-400/晚）</option>
+              <option value="luxury">豪华型（400-800/晚）</option>
+            </select>
+          </div>
+          <div class="budget-field">
+            <label>餐饮标准</label>
+            <select class="input select" id="budget-food">
+              <option value="budget">简餐为主（50/天）</option>
+              <option value="comfort" selected>正常消费（100/天）</option>
+              <option value="luxury">美食探索（200/天）</option>
+            </select>
+          </div>
+          <div class="budget-field">
+            <label>交通方式</label>
+            <select class="input select" id="budget-transport">
+              <option value="train">火车/高铁</option>
+              <option value="plane" selected>飞机</option>
+              <option value="self">自驾</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-large" onclick="calculateBudget()">计算预算</button>
+      </div>
+      <div class="budget-result" id="budget-result" style="display:none;">
+        <div class="budget-overview">
+          <div class="budget-total">
+            <span class="total-label">预计总花费</span>
+            <span class="total-amount" id="budget-total-amount">¥0</span>
+            <span class="total-per-person" id="budget-per-person">人均 ¥0</span>
+          </div>
+        </div>
+        <div class="budget-breakdown" id="budget-breakdown"></div>
+        <div class="budget-tips" id="budget-tips"></div>
+      </div>
+
+      <div class="ledger-section" id="ledger-section">
+        <h3><span data-icon="wallet" aria-hidden="true"></span>手动记账</h3>
+        <p class="ledger-hint">边旅行边记一笔，回来对账更清楚。</p>
+        <div class="ledger-form-row">
+          <input type="number" class="input" id="ledger-amount" min="0" step="1" placeholder="金额（元）">
+          <select class="input select" id="ledger-category" aria-label="记账分类">
+            <option value="food">餐饮</option>
+            <option value="transport">交通</option>
+            <option value="hotel">住宿</option>
+            <option value="ticket">门票</option>
+            <option value="shopping">购物</option>
+            <option value="other">其他</option>
+          </select>
+          <input type="date" class="input" id="ledger-date" aria-label="记账日期">
+          <input type="text" class="input" id="ledger-note" placeholder="备注（如：高铁票）">
+          <button class="btn btn-primary" onclick="addLedgerEntry()">记一笔</button>
+        </div>
+        <div class="ledger-summary" id="ledger-summary" aria-live="polite"></div>
+        <div class="ledger-list" id="ledger-list"></div>
+      </div>
+    </section>
+
+    <!-- ========== 方言课堂 ========== -->
+    <section class="tab-content" id="tab-dialect">
+      <div class="section-header">
+        <h2>方言小课堂</h2>
+        <p>学几句当地话，和当地人交朋友，让旅行更有温度</p>
+      </div>
+      <div class="dialect-selector">
+        <label>选择目的地：</label>
+        <select class="input select" id="dialect-city" onchange="renderDialects()">
+          <option value="beijing">北京</option>
+          <option value="shanghai">上海</option>
+          <option value="chengdu">成都</option>
+          <option value="guangzhou">广州</option>
+          <option value="chongqing">重庆</option>
+          <option value="xian">西安</option>
+          <option value="hangzhou">杭州</option>
+          <option value="changsha">长沙</option>
+          <option value="xiamen">厦门</option>
+          <option value="wuhan">武汉</option>
+        </select>
+      </div>
+      <div class="dialect-grid" id="dialect-grid"></div>
+      <div class="dialect-quiz" id="dialect-quiz">
+        <h3><span data-icon="target" aria-hidden="true"></span>方言小测试</h3>
+        <p id="quiz-question"></p>
+        <div class="quiz-options" id="quiz-options"></div>
+        <div class="quiz-result" id="quiz-result" style="display:none;"></div>
+        <button class="btn btn-outline" onclick="startDialectQuiz()"><span data-icon="refresh" aria-hidden="true"></span>换一题</button>
+      </div>
+    </section>
+
+    <!-- ========== 旅行日记 ========== -->
+    <section class="tab-content" id="tab-memory">
+      <div class="section-header">
+        <h2>旅行日记</h2>
+        <p>记录旅途中的美好瞬间，一页一篇，随时翻阅</p>
+      </div>
+      <div class="memory-input">
+        <div class="memory-form-row">
+          <input type="text" class="input" id="memory-title" placeholder="这一刻的标题（如：故宫的日落）">
+          <input type="text" class="input" id="memory-location" placeholder="地点（如：北京·故宫角楼）">
+          <input type="text" class="input" id="memory-mood" maxlength="20" placeholder="此刻的心情（自由填写，如：开心、想再来一次）">
+        </div>
+        <textarea class="textarea" id="memory-text" rows="3" placeholder="记录此刻的感受…"></textarea>
+        <button class="btn btn-primary" onclick="addMemory()">写一页日记</button>
+      </div>
+      <div class="diary-view-toggle" role="group" aria-label="日记视图切换">
+        <button type="button" id="diary-view-timeline" class="style-btn active">时间线</button>
+        <button type="button" id="diary-view-archive" class="style-btn">存档</button>
+      </div>
+      <div class="memory-timeline" id="memory-timeline"></div>
+      <div class="memory-empty" id="memory-empty">
+        <div class="empty-icon" data-icon="camera" aria-hidden="true"></div>
+        <p>还没有日记，写下你的第一篇吧！</p>
+      </div>
+      <div class="diary-book" id="diary-book" hidden>
+        <div class="diary-book-stage" id="diary-book-stage" tabindex="0" aria-label="日记存档，左右方向键翻页"></div>
+        <div class="diary-nav">
+          <button type="button" class="btn btn-outline" id="diary-prev"><span data-icon="chevron-right" class="icon-flip" aria-hidden="true"></span>上一页</button>
+          <span id="diary-page-indicator">第 1 / 1 页</span>
+          <button type="button" class="btn btn-outline" id="diary-next">下一页<span data-icon="chevron-right" aria-hidden="true"></span></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== 天气助手 ========== -->
+    <section class="tab-content" id="tab-weather">
+      <div class="section-header">
+        <h2>天气参考</h2>
+        <p>查看目的地天气，获取出行建议</p>
+      </div>
+      <div class="weather-form">
+        <label>选择城市：</label>
+        <select class="input select" id="weather-city">
+          <option value="北京">北京</option>
+          <option value="上海">上海</option>
+          <option value="成都">成都</option>
+          <option value="贵阳">贵阳</option>
+          <option value="广州">广州</option>
+          <option value="杭州">杭州</option>
+          <option value="厦门">厦门</option>
+          <option value="重庆">重庆</option>
+          <option value="西安">西安</option>
+          <option value="南京">南京</option>
+          <option value="武汉">武汉</option>
+          <option value="长沙">长沙</option>
+          <option value="深圳">深圳</option>
+          <option value="青岛">青岛</option>
+          <option value="三亚">三亚</option>
+          <option value="昆明">昆明</option>
+        </select>
+        <button class="btn btn-primary" onclick="checkWeather()">查看参考</button>
+      </div>
+      <div class="weather-result" id="weather-result" style="display:none;">
+        <div class="weather-card">
+          <h3 id="weather-city-name"></h3>
+          <div class="weather-info">
+            <div class="weather-item">
+              <span class="weather-icon" data-icon="thermometer" aria-hidden="true"></span>
+              <span class="weather-label">温度</span>
+              <span class="weather-value" id="weather-temp"></span>
+            </div>
+            <div class="weather-item">
+              <span class="weather-icon" data-icon="cloud" aria-hidden="true"></span>
+              <span class="weather-label">天气</span>
+              <span class="weather-value" id="weather-condition"></span>
+            </div>
+            <div class="weather-item">
+              <span class="weather-icon" data-icon="idea" aria-hidden="true"></span>
+              <span class="weather-label">建议</span>
+              <span class="weather-value" id="weather-tip"></span>
+            </div>
+            <div class="weather-item">
+              <span class="weather-icon" data-icon="calendar" aria-hidden="true"></span>
+              <span class="weather-label">最佳旅游季</span>
+              <span class="weather-value" id="weather-best"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== 发现 ========== -->
+    <section class="tab-content" id="tab-trivia">
+      <div class="section-header">
+        <h2>发现</h2>
+        <p>与「下一站」同步的城市内容：热门地点、美食与文化，不用主动查询</p>
+      </div>
+      <div class="discovery-content" id="discovery-content" aria-live="polite">
+        <div class="discovery-head">
+          <h3 id="discovery-city-name"></h3>
+          <button type="button" class="btn btn-outline btn-sm" id="discovery-set-stop">设为下一站</button>
+        </div>
+        <div class="discovery-grid">
+          <article class="discovery-cell">
+            <h4>热门地点</h4>
+            <div id="discovery-spots" class="chip-row"></div>
+          </article>
+          <article class="discovery-cell">
+            <h4>特色美食</h4>
+            <ul id="discovery-food" class="nextstop-list"></ul>
+          </article>
+          <article class="discovery-cell">
+            <h4>当地文化</h4>
+            <ul id="discovery-culture" class="nextstop-list"></ul>
+          </article>
+        </div>
+      </div>
+      <div class="trivia-form">
+        <label>换个城市考一考：</label>
+        <select class="input select" id="trivia-city">
+          <option value="北京">北京</option>
+          <option value="上海">上海</option>
+          <option value="成都">成都</option>
+          <option value="贵阳">贵阳</option>
+          <option value="广州">广州</option>
+          <option value="杭州">杭州</option>
+          <option value="厦门">厦门</option>
+          <option value="重庆">重庆</option>
+          <option value="西安">西安</option>
+          <option value="南京">南京</option>
+          <option value="武汉">武汉</option>
+          <option value="长沙">长沙</option>
+          <option value="深圳">深圳</option>
+          <option value="青岛">青岛</option>
+          <option value="三亚">三亚</option>
+          <option value="昆明">昆明</option>
+        </select>
+        <button class="btn btn-primary" onclick="startCityTrivia()">开始答题</button>
+      </div>
+      <div class="trivia-quiz">
+        <h3 id="trivia-question"></h3>
+        <div class="trivia-options" id="trivia-options"></div>
+        <div class="trivia-result" id="trivia-result" style="display:none;"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 打卡弹窗 -->
+  <div class="modal-overlay" id="checkin-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-desc" style="display:none;">
+    <div class="modal-card" tabindex="-1">
+      <div class="modal-stamp" data-icon="check-circle" aria-hidden="true"></div>
+      <h3 class="modal-title" id="modal-title">打卡成功！</h3>
+      <p class="modal-desc" id="modal-desc"></p>
+      <button class="btn btn-primary" onclick="closeModal()">太棒了！</button>
+    </div>
+  </div>
+
+  <!-- 旅行画像弹窗（需求5：昵称保存在本机） -->
+  <div class="modal-overlay" id="profile-modal" role="dialog" aria-modal="true" aria-labelledby="profile-modal-title" style="display:none;">
+    <div class="modal-card" tabindex="-1">
+      <div class="modal-stamp" data-icon="user" aria-hidden="true"></div>
+      <h3 class="modal-title" id="profile-modal-title">我的旅行画像</h3>
+      <p class="modal-desc">昵称仅保存在本机浏览器，用于问候与日记署名。</p>
+      <input type="text" class="input" id="profile-name" maxlength="12" placeholder="你的名字" autocomplete="off">
+      <button class="btn btn-primary" onclick="saveProfile()">保存</button>
+      <button class="btn btn-outline" onclick="closeProfileModal()">关闭</button>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <p>TripWise <span>·</span> 为每一次认真出发</p>
+  </footer>
+
+  <div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="true"></div>
+  <script src="icons.js"></script>
+  <script src="data.js"></script>
+  <script src="spot-photos.js"></script>
+  <script src="utils.js"></script>
+  <!-- Leaflet 改为异步加载，不阻塞首屏；renderRouteMap 会 await window.leafletReady -->
+  <script>
+    window.leafletReady = new Promise(function (resolve, reject) {
+      var s = document.createElement('script');
+      s.src = 'https://cdn.bootcdn.net/ajax/libs/leaflet/1.9.4/leaflet.min.js';
+      s.integrity = 'sha384-NElt3Op+9NBMCYaef5HxeJmU4Xeard/Lku8ek6hoPTvYkQPh3zLIrJP7KiRocsxO';
+      s.crossOrigin = 'anonymous';
+      s.async = true;
+      s.onload = function () { resolve(window.L); };
+      s.onerror = function () { reject(new Error('Leaflet CDN failed')); };
+      document.head.appendChild(s);
+    });
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"
+          integrity="sha384-ZZ1pncU3bQe8y31yfZdMFdSpttDoPmOZg2wguVK9almUodir1PghgT0eY7Mrty8H"
+          crossorigin="anonymous"></script>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+  <script src="v2.js"></script>
+</body>
+</html>
