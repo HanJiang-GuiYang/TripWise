@@ -263,28 +263,45 @@ async function callAI(messages, overrides = {}) {
   const cfg = getAiConfig();
   if (!cfg) throw new Error('NO_CONFIG');
 
-  const res = await fetch(cfg.proxyPrefix ? cfg.proxyPrefix + cfg.url : cfg.url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${cfg.apiKey}`
-    },
-    body: JSON.stringify({
-      model: cfg.model,
-      messages,
-      temperature: cfg.temperature,
-      max_tokens: overrides.maxTokens || cfg.maxTokens
-    })
+  const url = cfg.proxyPrefix ? cfg.proxyPrefix + cfg.url : cfg.url;
+  const body = JSON.stringify({
+    model: cfg.model,
+    messages,
+    temperature: cfg.temperature,
+    max_tokens: overrides.maxTokens || cfg.maxTokens
   });
 
-  if (!res.ok) {
-    if (res.status === 401 || res.status === 403) throw new Error('INVALID_KEY');
-    throw new Error(`API请求失败（${res.status}）`);
+  // 网络抖动/超时/服务繁忙自动重试一次；key 与格式问题不重试
+  for (let attempt = 0; ; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 90000);
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${cfg.apiKey}`
+        },
+        body,
+        signal: controller.signal
+      });
+
+      if (res.status === 401 || res.status === 403) throw new Error('INVALID_KEY');
+      if (res.status === 429 || res.status >= 500) throw new Error(`服务繁忙（${res.status}）`);
+      if (!res.ok) throw new Error(`API请求失败（${res.status}）`);
+      const data = await res.json();
+      const content = data.choices?.[0]?.message?.content;
+      if (!content) throw new Error('AI返回内容为空');
+      return content;
+    } catch (err) {
+      if (err.name === 'AbortError') throw new Error('请求超时（90秒）');
+      const retryable = err instanceof TypeError || /^服务繁忙/.test(err.message || '');
+      if (!retryable || attempt >= 1) throw err;
+      await new Promise(r => setTimeout(r, 1500));
+    } finally {
+      clearTimeout(timer);
+    }
   }
-  const data = await res.json();
-  const content = data.choices?.[0]?.message?.content;
-  if (!content) throw new Error('AI返回内容为空');
-  return content;
 }
 
 function describeAiError(err) {
@@ -389,6 +406,7 @@ async function generateRoute() {
       <div class="timeline-item ai-error-item">
         <h4>${U.iconSvg('alert')}生成失败</h4>
         <p>${U.escapeHtml(describeAiError(err))}</p>
+        <button class="timeline-nav-btn" onclick="generateRoute()">${U.iconSvg('navigation')}<span>重试</span></button>
       </div>`;
   } finally {
     btn.disabled = false;
@@ -1705,9 +1723,9 @@ const ledgerDate = document.getElementById('ledger-date');
 if (ledgerDate) ledgerDate.value = new Date().toISOString().slice(0, 10);
 renderLedger();
 
-// ========== 路线景点真实照片模块 ==========
-// 从 Wikipedia/Wikimedia Commons 获取景点真实照片，内嵌在时间线卡片中
-// 特性：三级查询回退、IntersectionObserver 懒加载、并发上限 3、URL 双层缓存、失败优雅隐藏
+// ========== 路线景点照片模块 ==========
+// 时间线卡片内嵌实景图：本地预置照片 → Pixabay 真实照片（需 key）→ AI 生成实景图（国内直连兜底）
+// 特性：并发上限 3、URL 双层缓存、失败优雅隐藏
 window.TripWisePlacePhotos = (function () {
   'use strict';
 
@@ -1715,10 +1733,8 @@ window.TripWisePlacePhotos = (function () {
   const CACHE_MAX = 200;
   const CONCURRENCY = 3;
   const FETCH_TIMEOUT = 8000;
-  const WIKI_COOLDOWN_MS = 5 * 60 * 1000;
 
   const sessionCache = new Map(); // key -> {url,width,height} | null
-  let wikiCooldownUntil = 0;
   let consecutiveFails = 0;
 
   // —— localStorage 持久化（只存 URL 元数据，不存 dataUrl，控制配额占用）——
@@ -1778,40 +1794,22 @@ window.TripWisePlacePhotos = (function () {
         // 有响应但无结果，尝试下一个查询词
       } catch (_) {
         consecutiveFails++;
-        if (consecutiveFails >= 2) wikiCooldownUntil = Date.now() + WIKI_COOLDOWN_MS;
       }
     }
     return null;
   }
 
-  // —— Wikipedia API 查询（zh 三级回退；中国大陆不可达，作海外兜底）——
-  async function fetchWikiPhoto(city, place) {
-    const queries = [place, `${place} ${city}`, `${city} ${place}`];
-    for (const q of queries) {
-      const url = `https://zh.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(q)}&gsrlimit=1&prop=pageimages&pithumbsize=640&format=json&origin=*`;
-      try {
-        const res = await fetchWithTimeout(url, FETCH_TIMEOUT);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        const page = Object.values(data.query?.pages || {})[0];
-        if (page?.thumbnail?.source) {
-          consecutiveFails = 0;
-          return { url: page.thumbnail.source, width: page.thumbnail.width, height: page.thumbnail.height };
-        }
-        // 有词条但无图，尝试下一个查询词
-      } catch (_) {
-        consecutiveFails++;
-        if (consecutiveFails >= 2) wikiCooldownUntil = Date.now() + WIKI_COOLDOWN_MS;
-      }
-    }
-    return null;
+  // —— AI 生成实景图兜底：国内直连可达、无需 key；URL 本身进缓存，后续加载直接命中 ——
+  function fetchGeneratedPhoto(city, place) {
+    const prompt = `${city}${place}著名景点，专业旅行风景摄影，自然光，高清写实，无人物，无文字水印`;
+    return Promise.resolve({ url: `https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=${encodeURIComponent(prompt)}&image_size=landscape_4_3` });
   }
 
-  // 优先 Pixabay（需配置 key），未配置时回退 Wikipedia
+  // Pixabay 配置了 key 则优先真实照片，查不到或失败时仍回退生成图；未配置直接走生成图
   function fetchPlacePhoto(city, place) {
-    if (Date.now() < wikiCooldownUntil) return Promise.resolve(null);
     const pixabayKey = window.TRIPWISE_CONFIG?.pixabayApiKey?.trim();
-    return pixabayKey ? fetchPixabayPhoto(city, place, pixabayKey) : fetchWikiPhoto(city, place);
+    if (!pixabayKey) return fetchGeneratedPhoto(city, place);
+    return fetchPixabayPhoto(city, place, pixabayKey).then(r => r || fetchGeneratedPhoto(city, place));
   }
 
   function applyResult(slotEl, result) {
@@ -1849,7 +1847,7 @@ window.TripWisePlacePhotos = (function () {
 
     slotEl.classList.add('is-loading');
     schedule(async () => {
-      const result = await fetchWikiPhoto(city, place);
+      const result = await fetchPlacePhoto(city, place);
       sessionCache.set(key, result);
       writeCache(key, result);
       applyResult(slotEl, result);
