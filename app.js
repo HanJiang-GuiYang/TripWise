@@ -1745,7 +1745,8 @@ renderLedger();
 window.TripWisePlacePhotos = (function () {
   'use strict';
 
-  const CACHE_PREFIX = 'tripwise-place-photo:';
+  // v2：旧版把"维基查不到图"的 null 也缓存了，导致换图源后仍显示无图；换前缀让旧缓存整体作废
+  const CACHE_PREFIX = 'tripwise-place-photo:v2:';
   const CACHE_MAX = 200;
   const CONCURRENCY = 3;
   const FETCH_TIMEOUT = 8000;
