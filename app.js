@@ -26,11 +26,27 @@ window.TripWiseNextStop = (function () {
   return { getCity, setCity, onChange };
 })();
 
-// 本地实景图取址：48 城已有 assets/cities/{城市}.jpg，缺图城市回退 hero-lake.jpg
+// 本地实景图取址：48 城已有 assets/cities/{拼音}.jpg，缺图城市回退 hero-lake.jpg
+// （GitHub Pages 构建拒绝非 ASCII 文件名，故本地照片一律用拼音命名）
 const NO_CITY_PHOTO = { '敦煌': 1, '西宁': 1, '银川': 1, '乌鲁木齐': 1 };
+const CITY_FILE_PINYIN = {
+  '三亚': 'sanya', '上海': 'shanghai', '丽江': 'lijiang', '兰州': 'lanzhou',
+  '北京': 'beijing', '北海': 'beihai', '南京': 'nanjing', '南宁': 'nanning',
+  '南昌': 'nanchang', '厦门': 'xiamen', '合肥': 'hefei', '呼和浩特': 'huhhot',
+  '哈尔滨': 'harbin', '大理': 'dali', '大连': 'dalian', '天津': 'tianjin',
+  '广州': 'guangzhou', '开封': 'kaifeng', '张家界': 'zhangjiajie', '张掖': 'zhangye',
+  '恩施': 'enshi', '成都': 'chengdu', '扬州': 'yangzhou', '拉萨': 'lasa',
+  '无锡': 'wuxi', '昆明': 'kunming', '杭州': 'hangzhou', '桂林': 'guilin',
+  '武汉': 'wuhan', '沈阳': 'shenyang', '泰安': 'taian', '洛阳': 'luoyang',
+  '济南': 'jinan', '海口': 'haikou', '深圳': 'shenzhen', '珠海': 'zhuhai',
+  '福州': 'fuzhou', '秦皇岛': 'qinhuangdao', '舟山': 'zhoushan', '苏州': 'suzhou',
+  '西安': 'xian', '贵阳': 'guiyang', '郑州': 'zhengzhou', '重庆': 'chongqing',
+  '长春': 'changchun', '长沙': 'changsha', '青岛': 'qingdao', '黄山': 'huangshan'
+};
 function cityPhotoSrc(city) {
-  if (city && !NO_CITY_PHOTO[city] && D.cityCoords[city]) {
-    return `assets/cities/${encodeURIComponent(city)}.jpg`;
+  const py = city && CITY_FILE_PINYIN[city];
+  if (py && !NO_CITY_PHOTO[city] && D.cityCoords[city]) {
+    return `assets/cities/${py}.jpg`;
   }
   return 'assets/hero-lake.jpg';
 }
