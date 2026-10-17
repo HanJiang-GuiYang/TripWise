@@ -328,6 +328,7 @@ window.TripWiseData = (function () {
 
   // AI 提供方配置（OpenAI 兼容格式）
   const AI_PROVIDERS = {
+    deepseek: { name: 'DeepSeek', url: 'https://api.deepseek.com/chat/completions' },
     siliconflow: { name: '硅基流动', url: 'https://api.siliconflow.cn/v1/chat/completions' },
     zhipu: { name: '智谱AI', url: 'https://open.bigmodel.cn/api/paas/v4/chat/completions' }
   };

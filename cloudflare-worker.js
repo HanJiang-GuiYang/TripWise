@@ -30,7 +30,7 @@ export default {
     }
 
     // 只转发白名单内的 API 域，防止沦为通用开放代理
-    const allowed = ['open.bigmodel.cn', 'api.siliconflow.cn'];
+    const allowed = ['open.bigmodel.cn', 'api.siliconflow.cn', 'api.deepseek.com'];
     if (!allowed.includes(new URL(target).hostname)) {
       return new Response('forbidden host', { status: 403, headers: CORS });
     }

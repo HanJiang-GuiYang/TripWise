@@ -289,9 +289,9 @@ async function callAI(messages, overrides = {}) {
 
 function describeAiError(err) {
   if (err.message === 'NO_CONFIG') return 'AI 尚未配置：请打开项目目录下的 config.js，把 API Key 填入 apiKey 字段并保存，刷新页面即可。';
-  if (err.message === 'INVALID_KEY') return 'API Key 无效或额度不足，请检查 config.js 中的 apiKey 是否填写正确（需先在平台完成实名认证）。';
+  if (err.message === 'INVALID_KEY') return 'API Key 无效或余额不足：请检查 config.js 中的 apiKey 是否正确（DeepSeek 需账户有余额，硅基流动/智谱需有可用额度）。';
   if (err instanceof TypeError) {
-    return '网络或跨域请求被拦截（Failed to fetch）：智谱 API 网关不支持浏览器跨域预检。两种解法任选其一——① 注册硅基流动（siliconflow.cn，免费额度），把 config.js 中 provider 改为 siliconflow 并填入其 apiKey；② 部署仓库自带的 cloudflare-worker.js（免费），把它的地址填入 config.js 的 proxyPrefix 字段。';
+    return '网络或跨域请求被拦截（Failed to fetch）：请检查网络连接；若使用智谱（zhipu），其网关不支持浏览器直连，需部署中转或改用 deepseek / siliconflow。';
   }
   return `AI 请求失败：${err.message}。请检查网络，或确认 config.js 中的模型名是否可用。`;
 }
