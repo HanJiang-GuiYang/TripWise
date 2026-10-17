@@ -1740,18 +1740,19 @@ if (ledgerDate) ledgerDate.value = new Date().toISOString().slice(0, 10);
 renderLedger();
 
 // ========== 路线景点照片模块 ==========
-// 时间线卡片内嵌实景图：本地预置照片 → Pixabay 真实照片（需 key）→ AI 生成实景图（国内直连兜底）
-// 特性：并发上限 3、URL 双层缓存、失败优雅隐藏
+// 时间线卡片内嵌实景图，三级策略：
+// ① 本地占位（城市大图裁切 + 景点名，零网络，任何环境必显示）
+// ② 配置了 pixabayApiKey 时后台查 Pixabay 真实照片（公网 API、国内直连可达），成功则替换占位
+// ③ 失败保持占位不回归。注意：不得使用 Trae 内部文生图端点——它对匿名请求返回固定默认图，且未挂代理的浏览器直接拦截
 window.TripWisePlacePhotos = (function () {
   'use strict';
 
-  // v2：旧版把"维基查不到图"的 null 也缓存了，导致换图源后仍显示无图；换前缀让旧缓存整体作废
-  const CACHE_PREFIX = 'tripwise-place-photo:v2:';
+  const CACHE_PREFIX = 'tripwise-place-photo:v3:';
   const CACHE_MAX = 200;
   const CONCURRENCY = 3;
   const FETCH_TIMEOUT = 8000;
 
-  const sessionCache = new Map(); // key -> {url,width,height} | null
+  const sessionCache = new Map(); // key -> {url} | null
   let consecutiveFails = 0;
 
   // —— localStorage 持久化（只存 URL 元数据，不存 dataUrl，控制配额占用）——
@@ -1816,31 +1817,29 @@ window.TripWisePlacePhotos = (function () {
     return null;
   }
 
-  // —— AI 生成实景图兜底：国内直连可达、无需 key；URL 本身进缓存，后续加载直接命中 ——
-  function fetchGeneratedPhoto(city, place) {
-    const prompt = `${city}${place}著名景点，专业旅行风景摄影，自然光，高清写实，无人物，无文字水印`;
-    return Promise.resolve({ url: `https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=${encodeURIComponent(prompt)}&image_size=landscape_4_3` });
-  }
-
-  // Pixabay 配置了 key 则优先真实照片，查不到或失败时仍回退生成图；未配置直接走生成图
-  function fetchPlacePhoto(city, place) {
-    const pixabayKey = window.TRIPWISE_CONFIG?.pixabayApiKey?.trim();
-    if (!pixabayKey) return fetchGeneratedPhoto(city, place);
-    return fetchPixabayPhoto(city, place, pixabayKey).then(r => r || fetchGeneratedPhoto(city, place));
+  // —— 本地占位：城市大图做背景 + 景点名，零网络，任何环境必定显示 ——
+  function renderPlaceholder(slotEl) {
+    slotEl.classList.remove('is-loading');
+    slotEl.classList.add('has-placeholder');
+    slotEl.style.backgroundImage = `url("${cityPhotoSrc(slotEl.dataset.city)}")`;
+    const label = document.createElement('span');
+    label.className = 'photo-placeholder-label';
+    label.textContent = slotEl.dataset.place;
+    slotEl.appendChild(label);
   }
 
   function applyResult(slotEl, result) {
     slotEl.classList.remove('is-loading');
-    if (!result || !result.url) {
-      slotEl.classList.add('is-failed'); // CSS 中 display:none，不影响卡片布局
-      return;
-    }
+    if (!result || !result.url) return; // 查无照片：保持占位，不隐藏
+    slotEl.querySelectorAll('img, .photo-placeholder-label').forEach(n => n.remove());
+    slotEl.classList.remove('has-placeholder');
+    slotEl.style.backgroundImage = '';
     const img = document.createElement('img');
     img.src = result.url;
     img.alt = `${slotEl.dataset.place}实景照片`;
     img.loading = 'lazy';
     img.onload = () => img.classList.add('loaded');
-    img.onerror = () => slotEl.classList.add('is-failed');
+    img.onerror = () => { img.remove(); renderPlaceholder(slotEl); }; // 图挂了退回占位
     slotEl.appendChild(img);
   }
 
@@ -1852,8 +1851,14 @@ window.TripWisePlacePhotos = (function () {
     const localPath = window.TRIPWISE_SPOT_PHOTOS?.[city]?.[place];
     if (localPath) { applyResult(slotEl, { url: localPath }); return; }
 
-    const key = `${city}#${place}`;
+    // ① 占位立即显示，卡片永不空窗
+    renderPlaceholder(slotEl);
 
+    // ② 配置了 Pixabay key 才发起网络查询，成功则替换占位
+    const pixabayKey = window.TRIPWISE_CONFIG?.pixabayApiKey?.trim();
+    if (!pixabayKey) return;
+
+    const key = `${city}#${place}`;
     if (sessionCache.has(key)) { applyResult(slotEl, sessionCache.get(key)); return; }
     const stored = readCache(key);
     if (stored !== undefined) {
@@ -1862,9 +1867,8 @@ window.TripWisePlacePhotos = (function () {
       return;
     }
 
-    slotEl.classList.add('is-loading');
     schedule(async () => {
-      const result = await fetchPlacePhoto(city, place);
+      const result = await fetchPixabayPhoto(city, place, pixabayKey);
       sessionCache.set(key, result);
       writeCache(key, result);
       applyResult(slotEl, result);
