@@ -402,6 +402,7 @@ button { letter-spacing: 0; }
   max-width: none;
   margin: 0;
   z-index: 10;
+  box-sizing: border-box;
 }
 
 .route-bg-image {
@@ -427,18 +428,18 @@ button { letter-spacing: 0; }
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 24px 20px;
-  gap: 14px;
+  padding: 16px 16px;
+  gap: 10px;
   overflow-y: auto;
   min-height: 0;
 }
 
 .route-prompt-text {
-  max-width: 520px;
+  max-width: 480px;
   text-align: center;
   color: rgba(255,255,255,.9);
-  font-size: clamp(13px, 1.8vw, 15px);
-  line-height: 1.6;
+  font-size: clamp(12px, 1.6vw, 14px);
+  line-height: 1.5;
   text-shadow: 0 1px 8px rgba(0,0,0,.3);
 }
 
@@ -516,13 +517,13 @@ button { letter-spacing: 0; }
 .route-date-checkboxes label {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
+  gap: 5px;
+  padding: 6px 10px;
   border: 1.5px solid rgba(255,255,255,.3);
-  border-radius: 10px;
+  border-radius: 8px;
   background: rgba(255,255,255,.1);
   color: rgba(255,255,255,.85);
-  font-size: 13px;
+  font-size: 12px;
   cursor: pointer;
   transition: all .2s;
   user-select: none;
