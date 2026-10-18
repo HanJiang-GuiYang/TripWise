@@ -46,8 +46,7 @@
   function updateGreetingPeriod() {
     const el = document.getElementById('greeting-period');
     if (!el) return;
-    const name = readProfile().name;
-    el.textContent = name ? `${period}，${name}` : period;
+    el.textContent = period;
   }
   updateGreetingPeriod();
   if (today) {

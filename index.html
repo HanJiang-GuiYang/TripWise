@@ -20,9 +20,9 @@
   <meta name="description" content="TripWise 是一款把路线、预算、行李和旅途日记放在一起的个性化旅行工作台。">
   <link rel="icon" href="data:,">
   <title>TripWise · 把旅行过成自己的版本</title>
-  <link rel="stylesheet" href="style.css?v=20261018c">
-  <link rel="stylesheet" href="v2.css?v=20261018c">
-  <link rel="stylesheet" href="splash.css?v=20261018c">
+  <link rel="stylesheet" href="style.css?v=20261018e">
+  <link rel="stylesheet" href="v2.css?v=20261018e">
+  <link rel="stylesheet" href="splash.css?v=20261018e">
   <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/leaflet/1.9.4/leaflet.min.css"
         integrity="sha384-c6Rcwz4e4CITMbu/NBmnNS8yN2sC3cUElMEMfP3vqqKFp7GOYaaBBCqmaWBjmkjb"
         crossorigin="anonymous" />
@@ -58,14 +58,10 @@
       <button class="nav-btn" data-tab="route"><span data-icon="map" aria-hidden="true"></span><span>路线</span></button>
       <button class="nav-btn" data-tab="packing"><span data-icon="luggage" aria-hidden="true"></span><span>行李</span></button>
       <button class="nav-btn" data-tab="landmarks"><span data-icon="pin-check" aria-hidden="true"></span><span>足迹</span></button>
-      <button class="nav-btn" data-tab="blindbox"><span data-icon="store" aria-hidden="true"></span><span>探店</span></button>
-      <button class="nav-btn" data-tab="journal"><span data-icon="notebook" aria-hidden="true"></span><span>手账</span></button>
       <button class="nav-btn" data-tab="budget"><span data-icon="wallet" aria-hidden="true"></span><span>预算</span></button>
-      <button class="nav-btn" data-tab="dialect"><span data-icon="messages" aria-hidden="true"></span><span>方言</span></button>
       <button class="nav-btn" data-tab="memory"><span data-icon="images" aria-hidden="true"></span><span>日记</span></button>
-      <button class="nav-btn" data-tab="weather"><span data-icon="cloud-sun" aria-hidden="true"></span><span>天气</span></button>
-      <button class="nav-btn" data-tab="trivia"><span data-icon="sparkles" aria-hidden="true"></span><span>发现</span></button>
       <button class="nav-btn" data-tab="ai"><span data-icon="messages" aria-hidden="true"></span><span>顾问</span></button>
+      <button class="nav-btn" data-tab="more"><span data-icon="compass" aria-hidden="true"></span><span>更多</span></button>
     </nav>
     <button class="icon-button" id="profile-btn" type="button" aria-label="我的旅行画像" title="我的旅行画像"><span data-icon="user" aria-hidden="true"></span></button>
     <button class="icon-button theme-toggle" id="theme-toggle" type="button" aria-label="切换深色模式" title="切换外观"><span data-icon="moon" aria-hidden="true"></span></button>
@@ -73,111 +69,77 @@
 
   <main class="main" id="main-content" tabindex="-1">
 
-    <!-- ========== 首页 ========== -->
-    <section class="tab-content active" id="tab-home">
-      <div class="home-intro">
-        <p id="personal-greeting" class="greeting-line">
-          <span id="greeting-period">晚上好</span>，下一站
-          <input type="text" id="next-stop-input" class="next-stop-input" list="next-stop-suggestions" placeholder="想去哪里？" autocomplete="off" aria-label="输入下一站目的地">
-          <button type="button" id="next-stop-go" class="btn btn-primary btn-sm" aria-label="确认下一站">出发</button>
-        </p>
+    <!-- ========== 首页（改版：全屏背景+问候置顶居中+锁定单页） ========== -->
+    <section class="tab-content active home-fullscreen" id="tab-home">
+      <img class="home-bg-image" id="home-bg-image" src="assets/hero-lake.jpg" alt="地区背景" fetchpriority="high" onerror="this.onerror=null;this.src='assets/hero-lake.jpg';">
+      <div class="home-bg-shade"></div>
+
+      <div class="home-greeting-bar">
+        <span id="greeting-period">晚上好</span><span class="greeting-comma">，</span><span class="greeting-next">下一站</span>
+        <input type="text" id="next-stop-input" class="next-stop-input" list="next-stop-suggestions" placeholder="想去哪里？" autocomplete="off" aria-label="输入下一站目的地">
+        <button type="button" id="next-stop-go" class="btn btn-primary btn-sm" aria-label="确认下一站">出发</button>
         <datalist id="next-stop-suggestions"></datalist>
-        <time id="today-date"></time>
       </div>
 
-      <section class="nextstop-card" id="nextstop-card" hidden aria-live="polite" aria-label="下一站图文介绍">
-        <div class="nextstop-head">
-          <h3 id="nextstop-title"></h3>
-          <div id="nextstop-checkin" class="nextstop-checkin"></div>
-        </div>
-        <div class="nextstop-grid">
-          <article class="nextstop-cell nextstop-scenery">
-            <img id="nextstop-scenery-img" alt="城市风光" loading="lazy">
-            <h4>热门风景</h4>
-            <p id="nextstop-scenery-text"></p>
-          </article>
-          <article class="nextstop-cell">
-            <h4>特色美食</h4>
-            <ul id="nextstop-food-list" class="nextstop-list"></ul>
-          </article>
-          <article class="nextstop-cell">
-            <h4>当地文化</h4>
-            <ul id="nextstop-culture-list" class="nextstop-list"></ul>
-          </article>
-        </div>
-      </section>
-
-      <div class="hero" aria-labelledby="hero-title">
-        <img class="hero-image" id="hero-image" src="assets/hero-lake.jpg" alt="杭州西湖雨后风景" width="1800" height="1100" fetchpriority="high" onerror="this.onerror=null;this.src='assets/hero-lake.jpg';">
-        <div class="hero-shade"></div>
-        <div class="hero-content">
-          <h2 class="hero-title" id="hero-title">把旅行过成<br>自己的版本</h2>
-          <p class="hero-desc">从一条真正顺路的行程开始。路线、预算、行李和回忆，都在一个地方。</p>
-          <button class="btn btn-hero btn-large" onclick="switchTab('route')"><span>规划下一站</span><span data-icon="arrow-up-right" aria-hidden="true"></span></button>
-        </div>
-        <div class="hero-route" aria-label="推荐路线">
-          <span>本周灵感</span>
-          <strong id="featured-route-name">杭州 · 雨后西湖</strong>
-          <button type="button" id="featured-route-button" aria-label="查看推荐路线"><span data-icon="arrow-right" aria-hidden="true"></span></button>
-        </div>
+      <div class="home-center-content">
+        <h2 class="home-main-title">把旅行过成<br>自己的版本</h2>
+        <p class="home-main-desc">从一条真正顺路的行程开始</p>
+        <button class="btn btn-hero btn-large" onclick="switchTab('route')"><span>规划下一站</span><span data-icon="arrow-up-right" aria-hidden="true"></span></button>
       </div>
 
-      <div class="home-section-heading">
-        <h2>从这里开始</h2>
-        <p>少一点准备焦虑，多一点临场自由。</p>
-      </div>
-      <div class="features-grid">
-        <button class="feature-card feature-wide" type="button" onclick="switchTab('route')">
-          <span data-icon="route" aria-hidden="true"></span><span><strong>设计一条顺路的行程</strong><small>52 个城市，地图与时间线同步</small></span><span data-icon="chevron-right" aria-hidden="true"></span>
+      <div class="home-bottom-actions">
+        <button class="home-action-btn" type="button" onclick="switchTab('packing')">
+          <span data-icon="luggage" aria-hidden="true"></span><span>行李</span>
         </button>
-        <button class="feature-card" type="button" onclick="switchTab('packing')">
-          <span data-icon="luggage" aria-hidden="true"></span><span><strong>收好行李</strong><small>按天气与场景准备</small></span><span data-icon="chevron-right" aria-hidden="true"></span>
+        <button class="home-action-btn" type="button" onclick="switchTab('budget')">
+          <span data-icon="wallet" aria-hidden="true"></span><span>预算</span>
         </button>
-        <button class="feature-card" type="button" onclick="switchTab('budget')">
-          <span data-icon="wallet" aria-hidden="true"></span><span><strong>算清预算</strong><small>住宿、交通、餐饮一眼看懂</small></span><span data-icon="chevron-right" aria-hidden="true"></span>
+        <button class="home-action-btn" type="button" onclick="switchTab('memory')">
+          <span data-icon="camera" aria-hidden="true"></span><span>手账</span>
         </button>
-        <button class="feature-card feature-photo" type="button" onclick="switchTab('memory')">
-          <img src="assets/memory-mountains.jpg" alt="山林之间的旅行风景" width="1200" height="800" loading="lazy">
-          <span><strong>把沿途留下来</strong><small>旅行日记与手账</small></span><span data-icon="chevron-right" aria-hidden="true"></span>
+        <button class="home-action-btn" type="button" onclick="switchTab('more')">
+          <span data-icon="compass" aria-hidden="true"></span><span>更多</span>
         </button>
       </div>
     </section>
 
     <!-- ========== 路线规划 ========== -->
-    <section class="tab-content" id="tab-route">
-      <div class="section-header">
-        <h2>路线规划</h2>
-        <p>选一座城市和旅行偏好，得到一条真正顺路的行程路线。</p>
-      </div>
-      <div class="route-input-group">
-        <select class="input select" id="route-dest">
-          <option value="">🌏 请选择目的地城市</option>
-        </select>
-        <select class="input select" id="route-days">
-          <option value="1">1天</option>
-          <option value="2">2天</option>
-          <option value="3" selected>3天</option>
-          <option value="5">5天</option>
-          <option value="7">7天</option>
-        </select>
-        <select class="input select" id="route-type">
-          <option value="culture">文化之旅</option>
-          <option value="food">美食之旅</option>
-          <option value="nature">自然探索</option>
-          <option value="photo">摄影打卡</option>
-        </select>
-        <button class="btn btn-primary" id="route-gen-btn" onclick="generateRoute()">生成路线</button>
-      </div>
-      <p class="route-hint">北京、上海、成都、贵阳可离线使用；其他城市需要在 <code>config.js</code> 配置旅行顾问。</p>
-      <div class="city-preview" id="city-preview" hidden aria-live="polite">
-        <img class="city-preview-image" id="city-preview-image" src="assets/hero-lake.jpg" alt="">
-        <div class="city-preview-shade"></div>
-        <div class="city-preview-label">
-          <span>目的地风光</span>
-          <strong id="city-preview-caption"></strong>
+    <section class="tab-content route-fullscreen" id="tab-route">
+      <img class="route-bg-image" id="route-bg-image" src="assets/hero-lake.jpg" alt="路线背景" fetchpriority="high" onerror="this.onerror=null;this.src='assets/hero-lake.jpg';">
+      <div class="route-bg-shade"></div>
+
+      <div class="route-input-overlay">
+        <div class="route-prompt-text">
+          把你想先做什么事（吃饭、奶茶等）、想优先游玩的景色/文化景点告诉我，我为你生成总规划；如有时间要求也请一并说明。
         </div>
+
+        <div class="route-input-group">
+          <select class="input select" id="route-dest">
+            <option value=""> 请选择目的地城市</option>
+          </select>
+          <select class="input select" id="route-type">
+            <option value="culture">文化之旅</option>
+            <option value="food">美食之旅</option>
+            <option value="nature">自然探索</option>
+            <option value="photo">摄影打卡</option>
+          </select>
+        </div>
+
+        <div class="route-date-picker">
+          <span class="route-date-label">选择出行日期：</span>
+          <div class="route-date-checkboxes" id="route-date-checkboxes">
+            <!-- 由 JS 动态生成未来7天日期选项 -->
+          </div>
+        </div>
+
+        <textarea class="route-custom-input" id="route-custom-prompt" placeholder="例如：第一天想吃当地特色小吃，第二天想去历史文化景点，第三天安排购物和返程…" rows="2"></textarea>
+
+        <button class="btn btn-primary btn-large" id="route-gen-btn" onclick="generateRoute()"><span data-icon="sparkles" aria-hidden="true"></span><span>AI 生成路线</span></button>
+        <p class="route-hint">北京、上海、成都、贵阳可离线使用；其他城市需要在 <code>config.js</code> 配置旅行顾问。</p>
       </div>
-      <div class="route-result" id="route-result" style="display:none;">
+
+      <div class="route-result-overlay" id="route-result" style="display:none;">
+        <button class="route-back-btn" onclick="showRouteInput()"><span data-icon="arrow-right" aria-hidden="true" style="transform:rotate(180deg)"></span>返回修改</button>
         <div class="route-layout">
           <div class="route-map-panel" id="route-map-panel">
             <div class="map-toolbar">
@@ -641,6 +603,41 @@
       </div>
     </section>
 
+    <!-- ========== 更多（收纳天气/方言/探店/手账/发现） ========== -->
+    <section class="tab-content" id="tab-more">
+      <div class="section-header">
+        <h2>更多功能</h2>
+        <p>探索旅行的方方面面</p>
+      </div>
+      <div class="more-grid">
+        <button class="more-card" type="button" onclick="switchTab('weather')">
+          <span data-icon="cloud-sun" aria-hidden="true"></span>
+          <div><strong>天气</strong><small>出行前查看目的地天气</small></div>
+          <span data-icon="chevron-right" aria-hidden="true"></span>
+        </button>
+        <button class="more-card" type="button" onclick="switchTab('dialect')">
+          <span data-icon="messages" aria-hidden="true"></span>
+          <div><strong>方言</strong><small>学几句当地话，融入旅行</small></div>
+          <span data-icon="chevron-right" aria-hidden="true"></span>
+        </button>
+        <button class="more-card" type="button" onclick="switchTab('blindbox')">
+          <span data-icon="store" aria-hidden="true"></span>
+          <div><strong>探店</strong><small>随机发现当地好店</small></div>
+          <span data-icon="chevron-right" aria-hidden="true"></span>
+        </button>
+        <button class="more-card" type="button" onclick="switchTab('journal')">
+          <span data-icon="notebook" aria-hidden="true"></span>
+          <div><strong>手账</strong><small>记录旅途点滴</small></div>
+          <span data-icon="chevron-right" aria-hidden="true"></span>
+        </button>
+        <button class="more-card" type="button" onclick="switchTab('trivia')">
+          <span data-icon="sparkles" aria-hidden="true"></span>
+          <div><strong>发现</strong><small>旅行冷知识与小测验</small></div>
+          <span data-icon="chevron-right" aria-hidden="true"></span>
+        </button>
+      </div>
+    </section>
+
   </main>
 
   <!-- 打卡弹窗 -->
@@ -670,10 +667,10 @@
   </footer>
 
   <div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="true"></div>
-  <script src="icons.js?v=20261018c"></script>
-  <script src="data.js?v=20261018c"></script>
-  <script src="spot-photos.js?v=20261018c"></script>
-  <script src="utils.js?v=20261018c"></script>
+  <script src="icons.js?v=20261018e"></script>
+  <script src="data.js?v=20261018e"></script>
+  <script src="spot-photos.js?v=20261018e"></script>
+  <script src="utils.js?v=20261018e"></script>
   <!-- Leaflet 改为异步加载，不阻塞首屏；renderRouteMap 会 await window.leafletReady -->
   <script>
     window.leafletReady = new Promise(function (resolve, reject) {
@@ -690,9 +687,9 @@
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"
           integrity="sha384-ZZ1pncU3bQe8y31yfZdMFdSpttDoPmOZg2wguVK9almUodir1PghgT0eY7Mrty8H"
           crossorigin="anonymous"></script>
-  <script src="config.js?v=20261018c"></script>
-  <script src="app.js?v=20261018c"></script>
-  <script src="v2.js?v=20261018c"></script>
-  <script src="splash.js?v=20261018c"></script>
+  <script src="config.js?v=20261018e"></script>
+  <script src="app.js?v=20261018e"></script>
+  <script src="v2.js?v=20261018e"></script>
+  <script src="splash.js?v=20261018e"></script>
 </body>
 </html>

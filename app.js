@@ -244,6 +244,35 @@ function initCitySelect() {
   });
 }
 
+// 初始化出行日期选择器（未来7天，默认选中前3天）
+function initDateCheckboxes() {
+  const container = document.getElementById('route-date-checkboxes');
+  if (!container) return;
+  const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
+  const today = new Date();
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    const dateStr = `${d.getMonth() + 1}/${d.getDate()}`;
+    const weekDay = `周${weekDays[d.getDay()]}`;
+    const label = document.createElement('label');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.value = d.toISOString().slice(0, 10);
+    cb.checked = i < 3; // 默认选中前3天
+    cb.dataset.dateIndex = i;
+    label.appendChild(cb);
+    label.appendChild(document.createTextNode(`${dateStr} ${weekDay}`));
+    container.appendChild(label);
+  }
+}
+
+// 获取选中的出行日期列表
+function getSelectedDates() {
+  const cbs = document.querySelectorAll('#route-date-checkboxes input[type="checkbox"]:checked');
+  return Array.from(cbs).map(cb => cb.value).sort();
+}
+
 // ========== 精选路线数据（离线） ==========
 // ========== AI 配置（来自 config.js，程序后台配置模式） ==========
 // 读取 config.js 中的全局配置；未配置时返回 null
@@ -339,18 +368,22 @@ function describeAiError(err) {
 // ========== 路线规划 ==========
 async function generateRoute() {
   const dest = document.getElementById('route-dest').value;
-  const days = document.getElementById('route-days').value;
   const type = document.getElementById('route-type').value;
+  const selectedDates = getSelectedDates();
+  const daysNum = selectedDates.length || 1;
 
   if (!dest) {
     window.showToast('请先选择目的地城市', 'alert');
+    return;
+  }
+  if (!selectedDates.length) {
+    window.showToast('请至少选择一天出行日期', 'alert');
     return;
   }
 
   // 精选城市走本地离线路线：单日按主题取，多日取 sevenDay 前 N 天
   if (D.routeData[dest]) {
     const cityData = D.routeData[dest];
-    const daysNum = parseInt(days, 10) || 1;
     let routes;
     if (daysNum > 1 && cityData.sevenDay) {
       routes = cityData.sevenDay.slice(0, daysNum)
@@ -360,7 +393,7 @@ async function generateRoute() {
     } else {
       routes = (cityData[type] || cityData.culture).map(route => ({ ...route, day: 1 }));
     }
-    showRouteResult(dest, days, type, routes);
+    showRouteResult(dest, selectedDates, type, routes);
     return;
   }
 
@@ -384,7 +417,8 @@ async function generateRoute() {
 
   // 先展示结果区和加载动画
   document.getElementById('route-result').style.display = 'block';
-  document.getElementById('map-title').innerHTML = `${U.iconSvg('map')}<span>${U.escapeHtml(dest)} · ${getDaysText(days)}${getRouteTypeText(type)}</span>`;
+  const daysText = daysNum === 1 ? '1天' : `${daysNum}天`;
+  document.getElementById('map-title').innerHTML = `${U.iconSvg('map')}<span>${U.escapeHtml(dest)} · ${daysText}${getRouteTypeText(type)}</span>`;
   document.getElementById('route-summary').innerHTML = `
     <h3>路线概览</h3>
     <div class="ai-loading"><div class="loading-dots"><span></span><span></span><span></span></div><p>AI 正在为你规划${U.escapeHtml(dest)}路线，请稍候…</p></div>`;
@@ -397,18 +431,20 @@ async function generateRoute() {
   document.getElementById('route-result').scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
 
   const center = D.cityCoords[dest] || [35.0, 105.0];
-  const daysNum = parseInt(days, 10) || 1;
   const dayRangeText = daysNum === 1
     ? '只安排第1天，'
     : `必须包含完整的第1天到第${daysNum}天，`;
-  const prompt = `你是专业旅行路线规划师。请为用户规划"${dest}"的${getRouteTypeText(type)}（${getDaysText(days)}，共${daysNum}天）。
+  const customPrompt = document.getElementById('route-custom-prompt')?.value?.trim() || '';
+  const customHint = customPrompt ? `\n用户额外要求：${customPrompt}` : '';
+  const dateRangeText = selectedDates.length > 1 ? `（${selectedDates[0]} 至 ${selectedDates[selectedDates.length - 1]}）` : '';
+  const prompt = `你是专业旅行路线规划师。请为用户规划"${dest}"的${getRouteTypeText(type)}（共${daysNum}天${dateRangeText}）。
 只返回JSON数组，不要任何其他文字、解释或markdown代码块符号。数组每个元素格式：
 {"day":第几天数字,"time":"HH:MM","title":"地点名","desc":"50字以内介绍","category":"landmark|food|nature|photo|shopping","lat":纬度数字,"lng":经度数字,"transport":"与上一站之间的交通方式"}
 要求：
 1. ${dayRangeText}每天安排4-6个地点；同一天内时间从早到晚、顺序合理、路线顺路；不同天的住宿与动线衔接合理；
 2. 数组按天排序：先排完第1天全部地点，再排第2天，以此类推；
 3. lat/lng必须是${dest}真实存在的地点坐标（城市中心约在纬度${center[0]}、经度${center[1]}附近），且必须使用GCJ-02火星坐标系（即高德地图/腾讯地图拾取到的坐标），不要使用WGS-84/GPS原始坐标；
-4. 地点必须是${dest}真实著名的景点或餐厅，不要虚构。`;
+4. 地点必须是${dest}真实著名的景点或餐厅，不要虚构。${customHint}`;
 
   try {
     // 天数越多需要的回复越长，按天放大 max_tokens（上限 6000）
@@ -419,9 +455,9 @@ async function generateRoute() {
     ], { maxTokens: routeMaxTokens });
     const routes = parseRouteJson(content, center);
     if (routes && routes.length) {
-      showRouteResult(dest, days, type, routes);
+      showRouteResult(dest, selectedDates, type, routes);
     } else {
-      showRouteTextFallback(dest, days, type, content);
+      showRouteTextFallback(dest, selectedDates, type, content);
     }
   } catch (err) {
     document.getElementById('route-summary').innerHTML = '';
@@ -433,8 +469,13 @@ async function generateRoute() {
       </div>`;
   } finally {
     btn.disabled = false;
-    btn.textContent = '生成路线';
+    btn.innerHTML = `${U.iconSvg('sparkles')}<span>AI 生成路线</span>`;
   }
+}
+
+// 返回路线输入页
+function showRouteInput() {
+  document.getElementById('route-result').style.display = 'none';
 }
 
 // 解析 AI 返回的路线 JSON，校验并修正坐标
@@ -501,7 +542,7 @@ function showRouteTextFallback(dest, days, type, text) {
 }
 
 // 渲染完整路线结果（地图 + 摘要 + 时间线 + 贴士）
-function showRouteResult(dest, days, type, routes) {
+function showRouteResult(dest, dates, type, routes) {
   // 重新渲染前先停掉旧路线上的自动导航，防止旧定时器操作新地图
   if (navigationInterval) {
     clearInterval(navigationInterval);
@@ -509,10 +550,12 @@ function showRouteResult(dest, days, type, routes) {
   }
   navSequence = [];
 
-  currentRouteData = { dest, days, type, routes };
+  const daysNum = Array.isArray(dates) ? dates.length : 1;
+  const daysText = daysNum === 1 ? '1天' : `${daysNum}天`;
+  currentRouteData = { dest, dates, type, routes };
 
   document.getElementById('route-result').style.display = 'block';
-  document.getElementById('map-title').innerHTML = `${U.iconSvg('map')}<span>${U.escapeHtml(dest)} · ${getDaysText(days)}${getRouteTypeText(type)}</span>`;
+  document.getElementById('map-title').innerHTML = `${U.iconSvg('map')}<span>${U.escapeHtml(dest)} · ${daysText}${getRouteTypeText(type)}</span>`;
   document.getElementById('nav-start-btn').style.display = 'inline-block';
   document.getElementById('nav-stop-btn').style.display = 'none';
 
@@ -676,6 +719,8 @@ function renderRouteSummary(dest, routes) {
   const totalStops = routes.length;
   const firstStop = routes[0]?.time || '09:00';
   const lastStop = routes[routes.length - 1]?.time || '18:00';
+  const dates = currentRouteData?.dates || [];
+  const dateDisplay = dates.length ? `${dates[0]}${dates.length > 1 ? ' ~ ' + dates[dates.length - 1] : ''}` : '';
 
   summary.innerHTML = `
     <h3>路线概览</h3>
@@ -688,6 +733,7 @@ function renderRouteSummary(dest, routes) {
         <span class="summary-value">${U.escapeHtml(firstStop)}-${U.escapeHtml(lastStop)}</span>
         <span class="summary-label">时间跨度</span>
       </div>
+      ${dateDisplay ? `<div class="summary-item"><span class="summary-value">${U.escapeHtml(dateDisplay)}</span><span class="summary-label">出行日期</span></div>` : ''}
       <div class="summary-item">
         <span class="summary-value">${U.escapeHtml(dest)}</span>
         <span class="summary-label">目的地</span>
@@ -1713,6 +1759,7 @@ async function renderDiscovery(city) {
 
 // ========== 初始化 ==========
 initCitySelect();
+initDateCheckboxes();
 initLandmarks();
 initChat();
 updateAiStatus();
