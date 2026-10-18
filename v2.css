@@ -388,14 +388,15 @@ button { letter-spacing: 0; }
 .more-card > div small { color: var(--text-light, #718096); font-size: 13px; }
 .more-card > span[data-icon="chevron-right"] { width: 20px; height: 20px; color: var(--text-light, #a0aec0); flex-shrink: 0; }
 
-/* ===== 路线页改版：全屏背景+锁定 ===== */
+/* ===== 路线页改版：全屏背景+可滚动 ===== */
 .route-fullscreen {
   position: fixed !important;
   inset: 0 !important;
   width: 100vw !important;
   height: 100vh !important;
   height: 100svh !important;
-  overflow: hidden !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
   display: flex !important;
   flex-direction: column !important;
   padding: 0 !important;
@@ -428,9 +429,9 @@ button { letter-spacing: 0; }
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 12px 12px;
-  gap: 8px;
-  overflow: hidden;
+  padding: 24px 16px;
+  gap: 14px;
+  overflow: visible;
   min-height: 0;
 }
 
