@@ -200,22 +200,31 @@ async function renderNextStopCard(city) {
 
 // ========== Tab切换 ==========
 function switchTab(tabName) {
+  const section = document.getElementById(`tab-${tabName}`);
+  if (!section?.classList.contains('tab-content')) return;
   // 离开路线页时停止自动导航，避免定时器在后台继续操作地图
   if (tabName !== 'route' && typeof stopNavigation === 'function') stopNavigation();
 
-  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(el => {
+    const active = el === section;
+    el.classList.toggle('active', active);
+    el.hidden = !active;
+    el.setAttribute('aria-hidden', String(!active));
+  });
+  document.body.dataset.view = tabName;
   document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
 
-  document.getElementById(`tab-${tabName}`).classList.add('active');
-  document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+  var navBtn = document.querySelector(`.nav-btn[data-tab="${tabName}"]`);
+  if (navBtn) navBtn.classList.add('active');
 }
 
 document.querySelectorAll('.nav-btn[data-tab]').forEach(btn => {
-  btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+  btn.addEventListener('click', () => window.switchTab(btn.dataset.tab, { focus: true }));
 });
 
 // ========== 地图相关变量 ==========
 let routeMap = null;
+let routeMapVersion = 0;
 let routeMarkers = [];
 let routePolyline = null;
 let navigationInterval = null;
@@ -416,7 +425,9 @@ async function generateRoute() {
   destroyRouteMap();
 
   // 先展示结果区和加载动画
-  document.getElementById('route-result').style.display = 'block';
+  showRouteOutput();
+  document.getElementById('route-result').setAttribute('aria-busy', 'true');
+  setRouteMapStatus('正在生成路线，地图将在路线准备好后显示。');
   const daysText = daysNum === 1 ? '1天' : `${daysNum}天`;
   document.getElementById('map-title').innerHTML = `${U.iconSvg('map')}<span>${U.escapeHtml(dest)} · ${daysText}${getRouteTypeText(type)}</span>`;
   document.getElementById('route-summary').innerHTML = `
@@ -427,8 +438,6 @@ async function generateRoute() {
   document.getElementById('map-legend').innerHTML = '';
   document.getElementById('nav-start-btn').style.display = 'none';
   document.getElementById('nav-stop-btn').style.display = 'none';
-  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  document.getElementById('route-result').scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
 
   const center = D.cityCoords[dest] || [35.0, 105.0];
   const dayRangeText = daysNum === 1
@@ -460,6 +469,7 @@ async function generateRoute() {
       showRouteTextFallback(dest, selectedDates, type, content);
     }
   } catch (err) {
+    setRouteMapStatus('路线生成失败，请重试或返回修改目的地。');
     document.getElementById('route-summary').innerHTML = '';
     document.getElementById('route-timeline').innerHTML = `
       <div class="timeline-item ai-error-item">
@@ -468,6 +478,7 @@ async function generateRoute() {
         <button class="timeline-nav-btn" onclick="generateRoute()">${U.iconSvg('navigation')}<span>重试</span></button>
       </div>`;
   } finally {
+    document.getElementById('route-result').setAttribute('aria-busy', 'false');
     btn.disabled = false;
     btn.innerHTML = `${U.iconSvg('sparkles')}<span>AI 生成路线</span>`;
   }
@@ -475,7 +486,25 @@ async function generateRoute() {
 
 // 返回路线输入页
 function showRouteInput() {
+  stopNavigation();
   document.getElementById('route-result').style.display = 'none';
+  document.getElementById('tab-route').classList.remove('has-result');
+  window.scrollTo({ top: 0, behavior: 'instant' });
+  document.getElementById('route-dest').focus({ preventScroll: true });
+}
+
+function showRouteOutput() {
+  document.getElementById('tab-route').classList.add('has-result');
+  document.getElementById('route-result').style.display = 'block';
+  if (document.getElementById('tab-route').classList.contains('active')) {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }
+}
+
+function setRouteMapStatus(message) {
+  const map = document.getElementById('route-map');
+  map.classList.add('map-status');
+  map.textContent = message;
 }
 
 // 解析 AI 返回的路线 JSON，校验并修正坐标
@@ -523,6 +552,7 @@ function parseRouteJson(text, center) {
 
 // AI 返回无法解析为结构化路线时，降级为纯文本展示
 function showRouteTextFallback(dest, days, type, text) {
+  setRouteMapStatus('本次返回文字路线，地点详情请查看行程建议。');
   document.getElementById('route-summary').innerHTML = `
     <h3>路线概览</h3>
     <div class="summary-grid">
@@ -554,7 +584,7 @@ function showRouteResult(dest, dates, type, routes) {
   const daysText = daysNum === 1 ? '1天' : `${daysNum}天`;
   currentRouteData = { dest, dates, type, routes };
 
-  document.getElementById('route-result').style.display = 'block';
+  showRouteOutput();
   document.getElementById('map-title').innerHTML = `${U.iconSvg('map')}<span>${U.escapeHtml(dest)} · ${daysText}${getRouteTypeText(type)}</span>`;
   document.getElementById('nav-start-btn').style.display = 'inline-block';
   document.getElementById('nav-stop-btn').style.display = 'none';
@@ -606,6 +636,7 @@ function getRouteTypeText(type) {
 // ========== 地图渲染 ==========
 // 销毁当前地图实例（AI 重新生成或切换路线时调用，避免旧城市地图残留）
 function destroyRouteMap() {
+  routeMapVersion++;
   if (routeMap) {
     try { routeMap.remove(); } catch (_) { /* 容器已移除时忽略 */ }
     routeMap = null;
@@ -617,13 +648,21 @@ function destroyRouteMap() {
 async function renderRouteMap(dest, routes) {
   // 清理旧地图
   destroyRouteMap();
+  const version = routeMapVersion;
+  setRouteMapStatus('正在加载地图，行程详情已可查看。');
   // 等待 Leaflet 异步加载完成；CDN 失败时提示并保留文字时间线
   try {
     await (window.leafletReady || Promise.resolve());
   } catch (_) {
+    if (version !== routeMapVersion) return;
+    setRouteMapStatus('地图组件加载失败，仍可查看行程并使用“导航到这里”。');
     window.showToast('地图组件加载失败，已为你显示文字路线', 'alert');
     return;
   }
+  if (version !== routeMapVersion) return;
+
+  document.getElementById('route-map').classList.remove('map-status');
+  document.getElementById('route-map').textContent = '';
 
   // 底图是高德瓦片（GCJ-02），data.js 离线数据与 AI 返回坐标统一约定为 GCJ-02，
   // 与底图同一坐标系，直接上图，不做转换

@@ -4,6 +4,12 @@
   const root = document.documentElement;
   const themeButton = document.getElementById('theme-toggle');
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const header = document.querySelector('.header');
+  function measureHeader() {
+    if (header) root.style.setProperty('--header-offset', `${Math.ceil(header.getBoundingClientRect().height)}px`);
+  }
+  measureHeader();
+  if (header && window.ResizeObserver) new ResizeObserver(measureHeader).observe(header);
 
   function icon(name) {
     return window.TripWiseIcons?.svg(name) || '';
@@ -78,11 +84,14 @@
     if (!raw) return;
     const city = matchCity(raw);
     if (nextStopInput) nextStopInput.value = city;
-    window.TripWiseNextStop.setCity(city);
-    showToast(`下一站：${city}`, 'map-pin');
+    window.openFeaturedRoute(city);
   }
   nextStopGo?.addEventListener('click', commitNextStop);
-  nextStopInput?.addEventListener('keydown', (e) => { if (e.key === 'Enter') commitNextStop(); });
+  nextStopInput?.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' || e.isComposing) return;
+    e.preventDefault();
+    commitNextStop();
+  });
   if (nextStopInput) nextStopInput.value = window.TripWiseNextStop.getCity();
 
   // —— 风景图全部本地化（assets/cities/），一次性清理旧版远程文生图 dataURL 缓存释放配额 ——
@@ -115,30 +124,47 @@
 
   const originalSwitchTab = window.switchTab;
   window.switchTab = function switchTabV2(tabName, options = {}) {
+    const section = document.getElementById(`tab-${tabName}`);
+    if (!section?.classList.contains('tab-content')) return;
+    const previousTab = document.body.dataset.view;
     originalSwitchTab(tabName);
+    const navTab = ['blindbox', 'journal', 'dialect', 'weather', 'trivia'].includes(tabName) ? 'more' : tabName;
     document.querySelectorAll('[data-tab]').forEach((item) => {
-      const active = item.dataset.tab === tabName;
+      const active = item.dataset.tab === (item.classList.contains('nav-btn') ? navTab : tabName);
       item.classList.toggle('active', active);
       if (item.classList.contains('nav-btn')) item.setAttribute('aria-current', active ? 'page' : 'false');
     });
-    const section = document.getElementById(`tab-${tabName}`);
     if (section) {
       section.setAttribute('aria-hidden', 'false');
       document.querySelectorAll('.tab-content:not(.active)').forEach((el) => el.setAttribute('aria-hidden', 'true'));
-      if (!options.keepScroll) window.scrollTo({ top: 0, behavior: reduceMotion.matches ? 'auto' : 'smooth' });
+      if (!options.keepScroll) window.scrollTo({ top: 0, behavior: 'instant' });
       if (options.focus) section.focus({ preventScroll: true });
     }
+    const activeNav = document.querySelector('.nav-btn[aria-current="page"]');
+    if (activeNav) {
+      const nav = activeNav.parentElement;
+      const left = activeNav.offsetLeft - nav.offsetLeft - (nav.clientWidth - activeNav.offsetWidth) / 2;
+      nav.scrollTo({ left, behavior: 'instant' });
+    }
+    if (tabName === 'route') requestAnimationFrame(() => {
+      if (document.body.dataset.view === 'route') routeMap?.invalidateSize?.();
+    });
     const url = new URL(window.location.href);
     if (tabName === 'home') url.searchParams.delete('view');
     else url.searchParams.set('view', tabName);
-    history.replaceState({ tabName }, '', url);
+    if (options.replaceHistory || previousTab === tabName) history.replaceState({ tabName }, '', url);
+    else history.pushState({ tabName }, '', url);
   };
 
   document.querySelector('.logo')?.addEventListener('click', () => window.switchTab('home'));
 
   const initialView = new URLSearchParams(location.search).get('view');
-  if (initialView && document.getElementById(`tab-${initialView}`)) window.switchTab(initialView, { keepScroll: true });
-  else window.switchTab('home', { keepScroll: true });
+  if (initialView && document.getElementById(`tab-${initialView}`)?.classList.contains('tab-content')) window.switchTab(initialView, { keepScroll: true, replaceHistory: true });
+  else window.switchTab('home', { keepScroll: true, replaceHistory: true });
+  window.addEventListener('popstate', () => {
+    const view = new URLSearchParams(location.search).get('view') || 'home';
+    window.switchTab(document.getElementById(`tab-${view}`)?.classList.contains('tab-content') ? view : 'home', { replaceHistory: true, focus: true });
+  });
 
   document.querySelectorAll('.tab-content').forEach((section) => {
     section.setAttribute('tabindex', '-1');
@@ -168,6 +194,7 @@
     if (select) select.value = city;
     window.TripWiseNextStop.setCity(city);
     window.switchTab('route');
+    window.showRouteInput();
     showToast(`已为你选好${city}，再选天数和偏好即可`, 'map-pin');
   };
   document.getElementById('featured-route-button')?.addEventListener('click', () => window.openFeaturedRoute(window.TripWiseNextStop.getCity()));

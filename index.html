@@ -23,9 +23,9 @@
   <meta name="description" content="TripWise 是一款把路线、预算、行李和旅途日记放在一起的个性化旅行工作台。">
   <link rel="icon" href="data:,">
   <title>TripWise · 把旅行过成自己的版本</title>
-  <link rel="stylesheet" href="style.css?v=20261018l">
-  <link rel="stylesheet" href="v2.css?v=20261018l">
-  <link rel="stylesheet" href="splash.css?v=20261018l">
+  <link rel="stylesheet" href="style.css?v=20261018m">
+  <link rel="stylesheet" href="v2.css?v=20261018n">
+  <link rel="stylesheet" href="splash.css?v=20261018m">
   <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/leaflet/1.9.4/leaflet.min.css"
         integrity="sha384-c6Rcwz4e4CITMbu/NBmnNS8yN2sC3cUElMEMfP3vqqKFp7GOYaaBBCqmaWBjmkjb"
         crossorigin="anonymous" />
@@ -80,7 +80,7 @@
       <div class="home-greeting-bar">
         <span id="greeting-period">晚上好</span><span class="greeting-comma">，</span><span class="greeting-next">下一站</span>
         <input type="text" id="next-stop-input" class="next-stop-input" list="next-stop-suggestions" placeholder="想去哪里？" autocomplete="off" aria-label="输入下一站目的地">
-        <button type="button" id="next-stop-go" class="btn btn-primary btn-sm" aria-label="确认下一站">出发</button>
+        <button type="button" id="next-stop-go" class="btn btn-primary btn-sm" aria-label="前往路线规划">出发</button>
         <datalist id="next-stop-suggestions"></datalist>
       </div>
 
@@ -112,6 +112,7 @@
       <div class="route-bg-shade"></div>
 
       <div class="route-input-overlay">
+        <h2 class="route-page-title">路线规划</h2>
         <div class="route-prompt-text">
           把你想先做什么事（吃饭、奶茶等）、想优先游玩的景色/文化景点告诉我，我为你生成总规划；如有时间要求也请一并说明。
         </div>
@@ -670,29 +671,32 @@
   </footer>
 
   <div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="true"></div>
-  <script src="icons.js?v=20261018l"></script>
-  <script src="data.js?v=20261018l"></script>
-  <script src="spot-photos.js?v=20261018l"></script>
-  <script src="utils.js?v=20261018l"></script>
+  <script src="icons.js?v=20261018m"></script>
+  <script src="data.js?v=20261018m"></script>
+  <script src="spot-photos.js?v=20261018m"></script>
+  <script src="utils.js?v=20261018m"></script>
   <!-- Leaflet 改为异步加载，不阻塞首屏；renderRouteMap 会 await window.leafletReady -->
   <script>
     window.leafletReady = new Promise(function (resolve, reject) {
       var s = document.createElement('script');
+      var timer = setTimeout(function () { reject(new Error('Leaflet load timeout')); }, 12000);
       s.src = 'https://cdn.bootcdn.net/ajax/libs/leaflet/1.9.4/leaflet.min.js';
       s.integrity = 'sha384-NElt3Op+9NBMCYaef5HxeJmU4Xeard/Lku8ek6hoPTvYkQPh3zLIrJP7KiRocsxO';
       s.crossOrigin = 'anonymous';
       s.async = true;
-      s.onload = function () { resolve(window.L); };
-      s.onerror = function () { reject(new Error('Leaflet CDN failed')); };
+      s.onload = function () { clearTimeout(timer); resolve(window.L); };
+      s.onerror = function () { clearTimeout(timer); reject(new Error('Leaflet CDN failed')); };
       document.head.appendChild(s);
     });
+    // Keep failures handled until a route actually needs the map.
+    window.leafletReady.catch(function () {});
   </script>
-  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"
+  <script defer src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"
           integrity="sha384-ZZ1pncU3bQe8y31yfZdMFdSpttDoPmOZg2wguVK9almUodir1PghgT0eY7Mrty8H"
           crossorigin="anonymous"></script>
-  <script src="config.js?v=20261018l"></script>
-  <script src="app.js?v=20261018l"></script>
-  <script src="v2.js?v=20261018l"></script>
-  <script src="splash.js?v=20261018l"></script>
+  <script src="config.js?v=20261018m"></script>
+  <script src="app.js?v=20261018n"></script>
+  <script src="v2.js?v=20261018o"></script>
+  <script src="splash.js?v=20261018m"></script>
 </body>
 </html>
