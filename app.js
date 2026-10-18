@@ -51,6 +51,13 @@ function cityPhotoSrc(city) {
   return 'assets/hero-lake.jpg';
 }
 
+// 类别主题图：未命中本地景点清单时，按 category 选不同主题图，避免同城市所有景点同图
+const THEME_MAP = { landmark: 'landmark', food: 'food', nature: 'nature', photo: 'photo', shopping: 'shopping' };
+function themePhotoSrc(cat) {
+  const key = cat && THEME_MAP[cat.toLowerCase()];
+  return key ? `assets/themes/${key}.jpg` : null;
+}
+
 // 探店盲盒拼音映射（用于本地美食数据复用）
 const CITY_PINYIN = { '北京': 'beijing', '上海': 'shanghai', '成都': 'chengdu', '广州': 'guangzhou', '杭州': 'hangzhou', '厦门': 'xiamen' };
 
@@ -462,6 +469,7 @@ function parseRouteJson(text, center) {
         time: String(item.time || ''),
         title: String(item.title || `地点${idx + 1}`),
         desc: String(item.desc || ''),
+        category: String(item.category || ''),
         icon: String(item.category || item.icon || 'pin'),
         lat, lng,
         transport: String(item.transport || '')
@@ -525,7 +533,7 @@ function showRouteResult(dest, days, type, routes) {
       <span class="time-badge">${U.escapeHtml(route.time)}</span>
       <h4><button class="timeline-place-btn" type="button" onclick="focusOnMarker(${idx})">${U.iconFrom(route.icon)}<span>${U.escapeHtml(route.title)}</span></button></h4>
       <p>${U.escapeHtml(route.desc)}</p>
-      <div class="place-photo-slot" data-place="${U.escapeHtml(route.title)}" data-city="${U.escapeHtml(dest)}"></div>
+      <div class="place-photo-slot" data-place="${U.escapeHtml(route.title)}" data-city="${U.escapeHtml(dest)}" data-cat="${U.escapeHtml(route.category || '')}"></div>
       ${route.transport ? `<div class="route-transport">${U.iconSvg('train')}<span>${U.escapeHtml(route.transport)}</span></div>` : ''}
       <button class="timeline-nav-btn" onclick="event.stopPropagation();navigateTo(${idx})">${U.iconSvg('navigation')}<span>导航到这里</span></button>
     </div>`).join('');
@@ -1818,11 +1826,12 @@ window.TripWisePlacePhotos = (function () {
     return null;
   }
 
-  // —— 本地占位：城市大图做背景 + 景点名，零网络，任何环境必定显示 ——
+  // —— 本地占位：优先按类别主题图（不同类别不同图），无类别回退城市大图 + 景点名 ——
   function renderPlaceholder(slotEl) {
     slotEl.classList.remove('is-loading');
     slotEl.classList.add('has-placeholder');
-    slotEl.style.backgroundImage = `url("${cityPhotoSrc(slotEl.dataset.city)}")`;
+    const themeUrl = themePhotoSrc(slotEl.dataset.cat);
+    slotEl.style.backgroundImage = `url("${themeUrl || cityPhotoSrc(slotEl.dataset.city)}")`;
     const label = document.createElement('span');
     label.className = 'photo-placeholder-label';
     label.textContent = slotEl.dataset.place;
