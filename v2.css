@@ -248,6 +248,7 @@ button { letter-spacing: 0; }
   max-width: none;
   margin: 0;
   z-index: 10;
+  box-sizing: border-box;
 }
 
 .home-bg-image {
@@ -271,10 +272,10 @@ button { letter-spacing: 0; }
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 16px 20px 12px;
+  gap: 6px;
+  padding: 10px 16px 8px;
   color: #fff;
-  font-size: clamp(16px, 2.5vw, 20px);
+  font-size: clamp(14px, 2.2vw, 18px);
   font-weight: 600;
   flex-shrink: 0;
   flex-wrap: wrap;
@@ -306,13 +307,14 @@ button { letter-spacing: 0; }
   justify-content: center;
   text-align: center;
   color: #fff;
-  padding: 0 24px;
-  gap: 12px;
+  padding: 0 20px;
+  gap: 8px;
+  min-height: 0;
 }
 
 .home-main-title {
   margin: 0;
-  font-size: clamp(36px, 8vw, 64px);
+  font-size: clamp(28px, 7vw, 52px);
   font-weight: 720;
   line-height: 1.1;
   letter-spacing: -.03em;
@@ -321,7 +323,7 @@ button { letter-spacing: 0; }
 
 .home-main-desc {
   margin: 0;
-  font-size: clamp(14px, 2vw, 18px);
+  font-size: clamp(13px, 1.8vw, 16px);
   color: rgba(255,255,255,.85);
   text-shadow: 0 1px 8px rgba(0,0,0,.25);
 }
@@ -329,8 +331,8 @@ button { letter-spacing: 0; }
 .home-bottom-actions {
   display: flex;
   justify-content: center;
-  gap: 12px;
-  padding: 16px 20px 28px;
+  gap: 10px;
+  padding: 10px 16px 20px;
   flex-shrink: 0;
   flex-wrap: wrap;
 }
@@ -425,17 +427,18 @@ button { letter-spacing: 0; }
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 40px 24px;
-  gap: 20px;
+  padding: 24px 20px;
+  gap: 14px;
   overflow-y: auto;
+  min-height: 0;
 }
 
 .route-prompt-text {
-  max-width: 560px;
+  max-width: 520px;
   text-align: center;
   color: rgba(255,255,255,.9);
-  font-size: clamp(14px, 2vw, 17px);
-  line-height: 1.7;
+  font-size: clamp(13px, 1.8vw, 15px);
+  line-height: 1.6;
   text-shadow: 0 1px 8px rgba(0,0,0,.3);
 }
 
