@@ -236,19 +236,19 @@ button { letter-spacing: 0; }
 
 /* ===== 首页改版：全屏背景+锁定单页 ===== */
 .home-fullscreen {
-  position: fixed;
-  inset: 0;
-  width: 100vw;
-  height: 100vh;
-  height: 100svh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  padding: 0;
-  max-width: none;
-  margin: 0;
-  z-index: 10;
-  box-sizing: border-box;
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  height: 100svh !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  padding: 0 !important;
+  max-width: none !important;
+  margin: 0 !important;
+  z-index: 10 !important;
+  box-sizing: border-box !important;
 }
 
 .home-bg-image {
@@ -390,19 +390,19 @@ button { letter-spacing: 0; }
 
 /* ===== 路线页改版：全屏背景+锁定 ===== */
 .route-fullscreen {
-  position: fixed;
-  inset: 0;
-  width: 100vw;
-  height: 100vh;
-  height: 100svh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  padding: 0;
-  max-width: none;
-  margin: 0;
-  z-index: 10;
-  box-sizing: border-box;
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  height: 100svh !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  padding: 0 !important;
+  max-width: none !important;
+  margin: 0 !important;
+  z-index: 10 !important;
+  box-sizing: border-box !important;
 }
 
 .route-bg-image {
