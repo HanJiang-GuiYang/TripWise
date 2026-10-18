@@ -1741,9 +1741,10 @@ renderLedger();
 
 // ========== 路线景点照片模块 ==========
 // 时间线卡片内嵌实景图，三级策略：
-// ① 本地占位（城市大图裁切 + 景点名，零网络，任何环境必显示）
-// ② 配置了 pixabayApiKey 时后台查 Pixabay 真实照片（公网 API、国内直连可达），成功则替换占位
-// ③ 失败保持占位不回归。注意：不得使用 Trae 内部文生图端点——它对匿名请求返回固定默认图，且未挂代理的浏览器直接拦截
+// ① 本地预置景点图（assets/spots/，spot-photos.js 清单，支持别名/子串匹配，零网络）
+// ② 未命中则本地占位（城市大图 + 景点名标签，任何环境必显示，永不灰块）
+// ③ 配置了 pixabayApiKey 时后台查 Pixabay 真实照片替换占位（可选增强）
+// 注：ModelScope/Trae 等文生图端点的浏览器直连均被 CORS 自定义头或匿名策略拦截，不可用
 window.TripWisePlacePhotos = (function () {
   'use strict';
 
@@ -1843,12 +1844,30 @@ window.TripWisePlacePhotos = (function () {
     slotEl.appendChild(img);
   }
 
+  // 本地清单匹配：精确 → 子串（AI 生成的景点名常带前后缀，如「故宫博物院」「岳麓山风景名胜区」）
+  // 取匹配成功的最长键，降低误配概率
+  function matchSpotPhoto(city, place) {
+    const map = window.TRIPWISE_SPOT_PHOTOS?.[city];
+    if (!map || !place) return null;
+    if (map[place]) return map[place];
+    let best = null;
+    let bestLen = 0;
+    for (const key in map) {
+      if (key.length >= 2 && place.includes(key)) {
+        if (key.length > bestLen) { best = map[key]; bestLen = key.length; }
+      } else if (place.length >= 2 && key.includes(place)) {
+        if (place.length > bestLen) { best = map[key]; bestLen = place.length; }
+      }
+    }
+    return best;
+  }
+
   async function loadPhoto(slotEl) {
     const place = slotEl.dataset.place;
     const city = slotEl.dataset.city;
 
     // 本地预下载的真实照片优先（assets/spots/，无需任何 API）
-    const localPath = window.TRIPWISE_SPOT_PHOTOS?.[city]?.[place];
+    const localPath = matchSpotPhoto(city, place);
     if (localPath) { applyResult(slotEl, { url: localPath }); return; }
 
     // ① 占位立即显示，卡片永不空窗
